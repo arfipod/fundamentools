@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;font:13px/1.5 system-ui,sans-serif;background:#fafafa}
+  body{width:400px;display:flex;flex-direction:column}
+
+  /* header */
+  .hdr{background:linear-gradient(135deg,#ff9900,#e67700);color:#fff;
+       padding:12px 14px;font-weight:700;font-size:15px;letter-spacing:.3px}
+
+  .wrap{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:10px}
+
+  /* cards */
+  .card{background:#fff;border:1px solid #e4e4e4;border-radius:8px;padding:10px}
+  .card h3{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#e67700;margin-bottom:8px}
+
+  /* checkboxes */
+  .chks{display:flex;flex-direction:column;gap:5px}
+  .chks label{display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12.5px;color:#444}
+  .chks input{accent-color:#ff9900;width:15px;height:15px}
+
+  /* select */
+  select{width:100%;padding:7px;border:1px solid #ddd;border-radius:6px;font-size:12.5px;margin-top:4px}
+
+  /* buttons */
+  button{width:100%;padding:9px;border:none;border-radius:6px;font-weight:600;
+         font-size:13px;cursor:pointer;transition:all .15s}
+  .btn-go{background:#ff9900;color:#fff;margin-top:6px}
+  .btn-go:hover{background:#e67700}
+  .btn-go:disabled{opacity:.45;cursor:wait}
+  .btn-pick{background:#333;color:#fff}
+  .btn-pick:hover{background:#555}
+  .btn-sm{padding:7px;font-size:12px;flex:1}
+  .btn-copy{background:#f0f0f0;color:#333}
+  .btn-copy:hover{background:#e0e0e0}
+  .btn-copy:disabled{opacity:.4;cursor:default}
+
+  .row{display:flex;gap:6px;margin-top:6px}
+
+  /* progress */
+  .prog{font-size:11.5px;color:#888;margin-top:6px;min-height:16px}
+
+  /* output */
+  textarea{width:100%;min-height:140px;padding:8px;border:1px solid #ddd;
+           border-radius:6px;font:11.5px/1.5 'Courier New',monospace;resize:vertical;color:#333}
+
+  .hint{font-size:11px;color:#aaa;margin-top:4px;font-style:italic}
+</style>
+</head>
+<body>
+
+<div class="hdr">📊 TIKR → AI Data Extractor</div>
+
+<div class="wrap">
+
+  <!-- PICK MODE -->
+  <div class="card">
+    <button class="btn-pick" id="pickBtn">📍 Pick a table manually</button>
+    <div class="hint">Click any table on the page → copies as Markdown</div>
+  </div>
+
+  <!-- AUTO-SCRAPE -->
+  <div class="card">
+    <h3>📅 Period</h3>
+    <select id="period">
+      <option value="annual">Annual</option>
+      <option value="quarterly">Quarterly</option>
+    </select>
+  </div>
+
+  <div class="card">
+    <h3>💰 Financials</h3>
+    <div class="chks">
+      <label><input type="checkbox" value="incomeStatement" checked> Income Statement</label>
+      <label><input type="checkbox" value="balanceSheet"    checked> Balance Sheet</label>
+      <label><input type="checkbox" value="cashFlow"        checked> Cash Flow</label>
+      <label><input type="checkbox" value="ratios"          checked> Ratios</label>
+      <label><input type="checkbox" value="segments"               > Segments</label>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>💎 Valuation</h3>
+    <div class="chks">
+      <label><input type="checkbox" value="multiples"      checked> Multiples</label>
+      <label><input type="checkbox" value="analystTargets" checked> Analyst Price Targets</label>
+      <label><input type="checkbox" value="competitors"           > Competitors</label>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>📈 Estimates</h3>
+    <div class="chks">
+      <label><input type="checkbox" value="estimates"      checked> Consensus Estimates</label>
+      <label><input type="checkbox" value="guidance"              > Management Guidance</label>
+      <label><input type="checkbox" value="earningsReview"        > Earnings Review</label>
+      <label><input type="checkbox" value="beatsMisses"           > Beats & Misses</label>
+      <label><input type="checkbox" value="estBreakdown"          > Estimates Breakdown</label>
+    </div>
+  </div>
+
+  <button class="btn-go" id="goBtn">🚀 Scrape selected</button>
+  <div class="prog" id="prog"></div>
+
+  <!-- OUTPUT -->
+  <div class="card">
+    <h3>Output</h3>
+    <textarea id="out" placeholder="Extracted data appears here…" readonly></textarea>
+    <div class="row">
+      <button class="btn-sm btn-copy" id="copyBtn" disabled>📋 Copy all</button>
+      <button class="btn-sm btn-copy" id="dlBtn"   disabled>💾 Download .md</button>
+    </div>
+  </div>
+
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>
