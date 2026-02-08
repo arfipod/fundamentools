@@ -1,34 +1,41 @@
-/* ── content.js ── pick-mode + message router ──────────────── */
-(function () {
+/* ── content.js ── ISOLATED world ── ULTRA VERBOSE ───────────── */
+(() => {
+  const NS = "TIKR-AI";
+  const ts = () => new Date().toISOString();
+  const log  = (...a) => console.log(`[${NS}][CONTENT]`, ts(), ...a);
+  const warn = (...a) => console.warn(`[${NS}][CONTENT]`, ts(), ...a);
+  const err  = (...a) => console.error(`[${NS}][CONTENT]`, ts(), ...a);
 
-  /* ════════════ helpers ════════════ */
+  window.addEventListener("unhandledrejection", (e) => {
+    err("UNHANDLED REJECTION", e.reason);
+  });
+  window.addEventListener("error", (e) => {
+    err("ERROR EVENT", e.message, e.filename, e.lineno, e.colno);
+  });
 
-  /* [|] uses a character class so backslash-doubling during copy-paste can never break it */
-  var esc  = function (s) { return (s == null ? "" : s).replace(/[|]/g, "\\\\|").trim(); };
-  var norm = function (s) { return esc((s == null ? "" : s).replace(/\\s+/g, " ").trim()); };
+  log("content.js injected", { href: location.href, readyState: document.readyState });
+
+  const esc  = (s) => (s == null ? "" : String(s)).replace(/[|]/g, "\\|").trim();
+  const norm = (s) => esc((s == null ? "" : String(s)).replace(/\s+/g, " ").trim());
 
   function tableToMd(table) {
-    var rows = [];
-    var trs = table.querySelectorAll("tr");
-    for (var i = 0; i < trs.length; i++) {
-      var cells = Array.from(trs[i].querySelectorAll("th,td")).map(function (c) {
-        return norm(c.innerText);
-      });
+    const rows = [];
+    const trs = table.querySelectorAll("tr");
+    for (let i = 0; i < trs.length; i++) {
+      const cells = Array.from(trs[i].querySelectorAll("th,td")).map((c) => norm(c.innerText));
       if (cells.length) rows.push(cells);
     }
     if (!rows.length) return "";
-    var w = Math.max.apply(null, rows.map(function (r) { return r.length; }));
-    var pad = function (r) { return r.concat(Array(w - r.length).fill("")); };
-    var hdr  = pad(rows[0]);
-    var sep  = hdr.map(function () { return "---"; });
-    var body = rows.slice(1).map(pad);
-    return [hdr, sep].concat(body).map(function (r) {
-      return "| " + r.join(" | ") + " |";
-    }).join("\\n");
+    const w = Math.max(...rows.map((r) => r.length));
+    const pad = (r) => r.concat(Array(w - r.length).fill(""));
+    const hdr  = pad(rows[0]);
+    const sep  = hdr.map(() => "---");
+    const body = rows.slice(1).map(pad);
+    return [hdr, sep, ...body].map((r) => `| ${r.join(" | ")} |`).join("\n"); // <-- FIX
   }
 
   function toast(text) {
-    var t = document.getElementById("__tikr_toast");
+    let t = document.getElementById("__tikr_toast");
     if (t) t.remove();
     t = document.createElement("div");
     t.id = "__tikr_toast";
@@ -39,12 +46,18 @@
       "border-radius:10px;font:13px/1.4 system-ui,sans-serif;" +
       "box-shadow:0 6px 18px rgba(0,0,0,.25);";
     document.body.appendChild(t);
-    setTimeout(function () { t.remove(); }, 2200);
+    setTimeout(() => t.remove(), 2200);
+  }
+
+  function relay(msg) {
+    log("relay -> chrome.runtime.sendMessage", msg);
+    chrome.runtime.sendMessage(msg).catch((e) => {
+      warn("chrome.runtime.sendMessage rejected", String(e));
+    });
   }
 
   /* ════════════ pick mode ════════════ */
-
-  var picking = false, highlighted = null;
+  let picking = false, highlighted = null;
 
   function highlight(el) {
     if (highlighted) highlighted.style.outline = "";
@@ -59,67 +72,105 @@
     document.removeEventListener("keydown", onEsc, true);
     if (highlighted) highlighted.style.outline = "";
     highlighted = null;
+    log("pick mode cleaned");
   }
 
   function onMove(e) {
     if (!picking) return;
-    var t = e.target ? e.target.closest("table") : null;
+    const t = e.target ? e.target.closest("table") : null;
     if (t) highlight(t);
   }
 
   function onPick(e) {
     if (!picking) return;
-    var t = e.target ? e.target.closest("table") : null;
+    const t = e.target ? e.target.closest("table") : null;
     if (!t) return;
     e.preventDefault();
     e.stopPropagation();
-    var md = tableToMd(t);
+    const md = tableToMd(t);
+    log("picked table", { rows: t.querySelectorAll("tr").length, mdLen: md.length });
     cleanPick();
     relay({ type: "MD_RESULT", markdown: md });
+
     navigator.clipboard.writeText(md).then(
-      function () { toast("\\u2705 Table copied as Markdown"); },
-      function () { toast("\\u26A0 Open side-panel to copy"); }
+      () => toast("✅ Table copied as Markdown"),
+      () => toast("⚠ Open side-panel to copy")
     );
   }
 
   function onEsc(e) {
     if (e.key === "Escape" && picking) {
+      log("pick cancelled via ESC");
       cleanPick();
       relay({ type: "MD_RESULT", markdown: "" });
       toast("Cancelled");
     }
   }
 
-  function relay(msg) {
-    chrome.runtime.sendMessage(msg).catch(function () {});
-  }
+  /* ════════════ bridge: MAIN world → ISOLATED world ════════════ */
+  document.addEventListener("__tikr_to_bg", (e) => {
+    const raw = e?.detail;
+    log("bridge MAIN->CONTENT event __tikr_to_bg", { rawPreview: String(raw).slice(0, 200) });
+    try {
+      const msg = JSON.parse(raw);
+      relay(msg);
+    } catch (ex) {
+      err("failed parsing __tikr_to_bg.detail", ex);
+    }
+  });
 
-  /* ════════════ message listener ════════════ */
-
+  /* ════════════ commands from background ════════════ */
   if (window.__tikrOnMessage) {
     chrome.runtime.onMessage.removeListener(window.__tikrOnMessage);
+    log("removed previous onMessage listener");
   }
 
-  window.__tikrOnMessage = function (msg) {
-    if (msg.type === "ENABLE_PICK_MODE") {
-      cleanPick();
-      picking = true;
-      document.addEventListener("mousemove", onMove, true);
-      document.addEventListener("click", onPick, true);
-      document.addEventListener("keydown", onEsc, true);
-      toast("Click any table (Esc to cancel)");
-    }
+  window.__tikrOnMessage = (msg, sender, sendResponse) => {
+    log("chrome.runtime.onMessage (to content)", msg);
 
-    if (msg.type === "SCRAPE_CMD" && window.__tikrScraper) {
-      window.__tikrScraper.run(msg.jobs, msg.period);
-    }
+    try {
+      if (msg?.type === "ENABLE_PICK_MODE") {
+        cleanPick();
+        picking = true;
+        document.addEventListener("mousemove", onMove, true);
+        document.addEventListener("click", onPick, true);
+        document.addEventListener("keydown", onEsc, true);
+        toast("Click any table (Esc to cancel)");
+        sendResponse?.({ ok: true });
+        return false;
+      }
 
-    return false;
+      if (msg?.type === "SCRAPE_CMD") {
+        log("forwarding SCRAPE_CMD to MAIN via __tikr_to_main", {
+          jobs: msg.jobs,
+          period: msg.period,
+          runId: msg.runId,
+          href: location.href,
+        });
+
+        document.dispatchEvent(new CustomEvent("__tikr_to_main", {
+          detail: JSON.stringify(msg),
+        }));
+
+        sendResponse?.({ ok: true });
+        return false;
+      }
+
+      sendResponse?.({ ok: true, ignored: true });
+      return false;
+    } catch (ex) {
+      err("onMessage handler exception", ex);
+      try { sendResponse?.({ ok: false, error: String(ex) }); } catch (_) {}
+      return false;
+    }
   };
 
   chrome.runtime.onMessage.addListener(window.__tikrOnMessage);
 
   /* ════════════ tell background we are ready ════════════ */
-  chrome.runtime.sendMessage({ type: "CONTENT_READY" }).catch(function () {});
-
+  chrome.runtime.sendMessage({ type: "CONTENT_READY" }).then(() => {
+    log("sent CONTENT_READY");
+  }).catch((e) => {
+    warn("failed sending CONTENT_READY", String(e));
+  });
 })();
