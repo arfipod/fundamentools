@@ -55,7 +55,7 @@
     return {
       cid: u.searchParams.get("cid") || "",
       tid: u.searchParams.get("tid") || "",
-      ref: u.searchParams.get("ref") || "vx95f7"
+      ref: u.searchParams.get("ref") || ""
     };
   }
 
@@ -90,6 +90,19 @@
     );
   }
 
+  function urlsMatch(a, b) {
+    try {
+      const ua = new URL(a);
+      const ub = new URL(b);
+      if (ua.origin !== ub.origin || ua.pathname !== ub.pathname) return false;
+      const pa = ua.searchParams;
+      const pb = ub.searchParams;
+      for (const [k, v] of pa) { if (pb.get(k) !== v) return false; }
+      for (const [k, v] of pb) { if (pa.get(k) !== v) return false; }
+      return true;
+    } catch { return a === b; }
+  }
+
   async function navigateTo(section, tab, ids, runId) {
     const path = `/stock/${section}`;
     const query = { cid: ids.cid, tid: ids.tid, tab, ref: ids.ref };
@@ -103,7 +116,7 @@
 
     log("navigateTo(begin)", { runId, from: location.href, target, section, tab });
 
-    if (location.href === target) {
+    if (urlsMatch(location.href, target)) {
       log("navigateTo(skip already at target)", { runId });
       return true;
     }
@@ -112,16 +125,24 @@
     log("router", { runId, hasRouter: !!router, hasPush: typeof router?.push === "function" });
 
     try {
-      if (router?.push) router.push({ path, query });
-      else history.pushState({}, "", target);
+      if (router?.push) {
+        router.push({ path, query });
+      } else {
+        warn("Vue router not found, using pushState + popstate fallback", { runId });
+        history.pushState({}, "", target);
+        window.dispatchEvent(new PopStateEvent("popstate", { state: {} }));
+      }
     } catch (e) {
       err("navigateTo push threw", { runId, error: String(e) });
-      try { history.pushState({}, "", target); } catch (_) {}
+      try {
+        history.pushState({}, "", target);
+        window.dispatchEvent(new PopStateEvent("popstate", { state: {} }));
+      } catch (_) {}
     }
 
     const t0 = Date.now();
     while (Date.now() - t0 < 12000) {
-      if (location.href === target) {
+      if (urlsMatch(location.href, target)) {
         log("navigateTo(done)", { runId, ms: Date.now() - t0 });
         return true;
       }
@@ -201,7 +222,8 @@
   }
 
   function scrapeAllTablesOnPage(runId) {
-    const tables = [...document.querySelectorAll("table")];
+    const tables = [...document.querySelectorAll("table")]
+      .filter((t) => t.querySelectorAll("tr").length > 2);
     log("scrapeAllTablesOnPage", { runId, tables: tables.length });
 
     const parts = tables.map(tableToMarkdown).filter(Boolean);
@@ -276,8 +298,16 @@
 
     try {
       const msg = JSON.parse(raw);
-      if (msg?.type === "SCRAPE_CMD") {
-        run(msg.jobs || [], msg.period || "annual", msg.runId || null);
+      if (!msg || typeof msg !== "object" || typeof msg.type !== "string") {
+        warn("__tikr_to_main: ignoring message with invalid shape", { raw });
+        return;
+      }
+      if (msg.type === "SCRAPE_CMD") {
+        if (!Array.isArray(msg.jobs)) {
+          warn("__tikr_to_main: SCRAPE_CMD with non-array jobs, ignoring", { raw });
+          return;
+        }
+        run(msg.jobs, msg.period || "annual", msg.runId || null);
       }
     } catch (ex) {
       err("failed parsing __tikr_to_main.detail", String(ex));

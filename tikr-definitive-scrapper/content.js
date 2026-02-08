@@ -19,7 +19,7 @@
     const trs = table.querySelectorAll("tr");
     for (let i = 0; i < trs.length; i++) {
       const cells = Array.from(trs[i].querySelectorAll("th,td")).map((c) => norm(c.innerText));
-      if (cells.length) rows.push(cells);
+      if (cells.length && cells.some((x) => x !== "")) rows.push(cells);
     }
     if (!rows.length) return "";
     const w = Math.max(...rows.map((r) => r.length));
@@ -106,16 +106,27 @@
   }
 
   /* ════════════ bridge: MAIN -> ISOLATED ════════════ */
-  document.addEventListener("__tikr_to_bg", (e) => {
+  if (window.__tikrBridgeHandler) {
+    document.removeEventListener("__tikr_to_bg", window.__tikrBridgeHandler);
+    log("removed previous __tikr_to_bg listener");
+  }
+
+  window.__tikrBridgeHandler = (e) => {
     const raw = e?.detail;
     log("bridge MAIN->CONTENT event __tikr_to_bg", { rawPreview: String(raw).slice(0, 200) });
     try {
       const msg = JSON.parse(raw);
+      if (!msg || typeof msg !== "object" || typeof msg.type !== "string") {
+        warn("__tikr_to_bg: ignoring message with invalid shape", { raw });
+        return;
+      }
       relay(msg);
     } catch (ex) {
       err("failed parsing __tikr_to_bg.detail", String(ex));
     }
-  });
+  };
+
+  document.addEventListener("__tikr_to_bg", window.__tikrBridgeHandler);
 
   /* ════════════ commands from background ════════════ */
   if (window.__tikrOnMessage) {
