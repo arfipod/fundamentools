@@ -43,38 +43,53 @@ copyBtn.addEventListener("click", async () => {
   }
 });
 
+function setBusy(busy) {
+  scrapeBtn.disabled = busy;
+  pickBtn.disabled = busy;
+}
+
 pickBtn.addEventListener("click", async () => {
-  out.value = "";
-  copyBtn.disabled = true;
+  try {
+    out.value = "";
+    copyBtn.disabled = true;
 
-  const tabId = await getActiveTabId();
-  const runId = `run_${Date.now()}`;
+    const tabId = await getActiveTabId();
+    const runId = `run_${Date.now()}`;
 
-  log("START_PICK", { tabId, runId });
-  setStatus("Pick mode: click a table in TIKR…");
+    log("START_PICK", { tabId, runId });
+    setStatus("Pick mode: click a table in TIKR…");
 
-  chrome.runtime.sendMessage({ type: "START_PICK", tabId, runId });
+    chrome.runtime.sendMessage({ type: "START_PICK", tabId, runId });
+  } catch (e) {
+    setStatus("⚠ " + (e.message || "Failed to start pick mode"));
+  }
 });
 
 scrapeBtn.addEventListener("click", async () => {
-  out.value = "";
-  copyBtn.disabled = true;
+  try {
+    out.value = "";
+    copyBtn.disabled = true;
+    setBusy(true);
 
-  const jobs = selectedJobs();
-  const period = periodSel.value || "annual";
-  const tabId = await getActiveTabId();
-  const runId = `run_${Date.now()}`;
+    const jobs = selectedJobs();
+    const period = periodSel.value || "annual";
+    const tabId = await getActiveTabId();
+    const runId = `run_${Date.now()}`;
 
-  log("SCRAPE_START", { tabId, runId, jobs, period });
-  setStatus(`Starting scrape (${jobs.length})…`);
+    log("SCRAPE_START", { tabId, runId, jobs, period });
+    setStatus(`Starting scrape (${jobs.length})…`);
 
-  chrome.runtime.sendMessage({
-    type: "SCRAPE_START",
-    tabId,
-    jobs,
-    period,
-    runId
-  });
+    chrome.runtime.sendMessage({
+      type: "SCRAPE_START",
+      tabId,
+      jobs,
+      period,
+      runId
+    });
+  } catch (e) {
+    setBusy(false);
+    setStatus("⚠ " + (e.message || "Failed to start scrape"));
+  }
 });
 
 chrome.runtime.onMessage.addListener((msg) => {
@@ -88,6 +103,7 @@ chrome.runtime.onMessage.addListener((msg) => {
   if (msg.type === "SCRAPE_DONE") {
     out.value = msg.text || "";
     copyBtn.disabled = !out.value;
+    setBusy(false);
     setStatus("✅ Done (result in textarea)");
     return;
   }
@@ -95,6 +111,7 @@ chrome.runtime.onMessage.addListener((msg) => {
   if (msg.type === "MD_RESULT") {
     out.value = msg.markdown || "";
     copyBtn.disabled = !out.value;
+    setBusy(false);
     setStatus(out.value ? "✅ Picked table (Markdown ready)" : "Pick cancelled/empty");
     return;
   }
