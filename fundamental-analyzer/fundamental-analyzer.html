@@ -112,6 +112,13 @@ body{
   cursor:pointer;font-size:.85rem;transition:all .15s;
 }
 .btn-back:hover{border-color:var(--accent);color:var(--accent)}
+.header-actions{display:flex;gap:.6rem;align-items:center}
+.btn-toggle-sections{
+  background:var(--surface2);border:1px solid var(--border);
+  color:var(--text);padding:.5rem 1rem;border-radius:var(--radius-sm);
+  cursor:pointer;font-size:.85rem;transition:all .15s;
+}
+.btn-toggle-sections:hover{border-color:var(--accent);color:var(--accent)}
 
 /* SCORE CARDS ROW */
 .score-row{
@@ -2413,7 +2420,10 @@ function renderDashboard(data, results) {
         <h2>${data.ticker ? data.ticker + ' — ' : ''}${data.company}</h2>
         <span class="price">${data.price || ''} ${data.period ? '• ' + data.period : ''} • ${results.totalMetrics} metrics analyzed</span>
       </div>
-      <button class="btn-back" onclick="goBack()">← New Analysis</button>
+      <div class="header-actions">
+        <button id="toggleSectionsBtn" class="btn-toggle-sections" onclick="toggleAllSections()">Collapse all sections</button>
+        <button class="btn-back" onclick="goBack()">← New Analysis</button>
+      </div>
     </div>
   `;
 
@@ -2464,7 +2474,7 @@ function renderDashboard(data, results) {
     const badgeCls = gradeBadgeClass(sec.grade);
     html += `
     <div id="${sec.id || `sec-${si}`}" class="section fade-up delay-${Math.min(si+2, 6)}">
-      <div class="section-head${si < 4 ? ' open' : ''}" onclick="this.classList.toggle('open')">
+      <div class="section-head${si < 4 ? ' open' : ''}" onclick="toggleSection(this)">
         <span style="font-size:1.2rem">${sec.icon}</span>
         <h3>${sec.title}</h3>
         <span class="metric-count">${sec.items.length} metrics</span>
@@ -2499,6 +2509,32 @@ function renderDashboard(data, results) {
   // Summary
   html += buildSummary(data, results);
   d.innerHTML = html;
+  updateToggleSectionsButton();
+}
+
+function updateToggleSectionsButton() {
+  const btn = document.getElementById('toggleSectionsBtn');
+  if (!btn) return;
+  const heads = Array.from(document.querySelectorAll('.section-head'));
+  if (!heads.length) {
+    btn.textContent = 'Toggle sections';
+    return;
+  }
+  const allOpen = heads.every(h => h.classList.contains('open'));
+  btn.textContent = allOpen ? 'Collapse all sections' : 'Open all sections';
+}
+
+function toggleSection(headEl) {
+  headEl.classList.toggle('open');
+  updateToggleSectionsButton();
+}
+
+function toggleAllSections() {
+  const heads = Array.from(document.querySelectorAll('.section-head'));
+  if (!heads.length) return;
+  const allOpen = heads.every(h => h.classList.contains('open'));
+  heads.forEach(h => h.classList.toggle('open', !allOpen));
+  updateToggleSectionsButton();
 }
 
 function buildSummary(data, results) {
