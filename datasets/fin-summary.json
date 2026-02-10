@@ -1,0 +1,166 @@
+{
+  "income_statement": {
+    "revenue": {
+      "total_revenue": {},
+      "revenue_yoy_growth": {}
+    },
+    "costs": {
+      "cost_of_goods_sold": {},
+      "gross_profit": {},
+      "gross_margin": {}
+    },
+    "operating_expenses": {
+      "selling_general_admin": {},
+      "research_and_development": {},
+      "depreciation_amortization": {},
+      "total_operating_expenses": {}
+    },
+    "operating_profitability": {
+      "operating_income": {},
+      "operating_margin": {}
+    },
+    "non_operating": {
+      "interest_expense": {},
+      "interest_income": {},
+      "other_non_operating_items": {}
+    },
+    "pre_tax": {
+      "earnings_before_tax": {}
+    },
+    "taxes": {
+      "income_tax_expense": {},
+      "effective_tax_rate": {}
+    },
+    "net_income": {
+      "net_income": {},
+      "net_margin": {}
+    },
+    "per_share": {
+      "eps_basic": {},
+      "eps_diluted": {},
+      "dividends_per_share": {},
+      "payout_ratio": {}
+    }
+  },
+
+  "balance_sheet": {
+    "assets": {
+      "current_assets": {
+        "cash_and_equivalents": {},
+        "short_term_investments": {},
+        "accounts_receivable": {},
+        "inventory": {},
+        "other_current_assets": {},
+        "total_current_assets": {}
+      },
+      "non_current_assets": {
+        "property_plant_equipment_net": {},
+        "goodwill": {},
+        "intangible_assets": {},
+        "long_term_investments": {},
+        "other_long_term_assets": {}
+      },
+      "total_assets": {}
+    },
+    "liabilities": {
+      "current_liabilities": {
+        "accounts_payable": {},
+        "short_term_debt": {},
+        "current_portion_long_term_debt": {},
+        "deferred_revenue_current": {},
+        "other_current_liabilities": {},
+        "total_current_liabilities": {}
+      },
+      "non_current_liabilities": {
+        "long_term_debt": {},
+        "deferred_revenue_non_current": {},
+        "deferred_tax_liabilities": {},
+        "other_long_term_liabilities": {}
+      },
+      "total_liabilities": {}
+    },
+    "equity": {
+      "common_stock": {},
+      "retained_earnings": {},
+      "other_comprehensive_income": {},
+      "total_equity": {}
+    }
+  },
+
+  "cash_flow_statement": {
+    "operating_activities": {
+      "net_income": {},
+      "depreciation_amortization": {},
+      "stock_based_compensation": {},
+      "changes_in_working_capital": {},
+      "cash_from_operations": {}
+    },
+    "investing_activities": {
+      "capital_expenditures": {},
+      "acquisitions": {},
+      "investments_activity": {},
+      "cash_from_investing": {}
+    },
+    "financing_activities": {
+      "debt_issued": {},
+      "debt_repaid": {},
+      "share_issuance": {},
+      "share_buybacks": {},
+      "dividends_paid": {},
+      "cash_from_financing": {}
+    },
+    "summary": {
+      "net_change_in_cash": {},
+      "free_cash_flow": {},
+      "free_cash_flow_margin": {}
+    }
+  },
+
+  "ratios": {
+    "profitability": {
+      "return_on_assets": {},
+      "return_on_equity": {},
+      "return_on_invested_capital": {}
+    },
+    "margins": {
+      "gross_margin": {},
+      "operating_margin": {},
+      "ebitda_margin": {},
+      "net_margin": {}
+    },
+    "liquidity": {
+      "current_ratio": {},
+      "quick_ratio": {}
+    },
+    "leverage": {
+      "total_debt_to_equity": {},
+      "net_debt_to_ebitda": {},
+      "interest_coverage": {}
+    },
+    "efficiency": {
+      "asset_turnover": {},
+      "receivables_turnover": {},
+      "inventory_turnover": {},
+      "cash_conversion_cycle": {}
+    }
+  },
+
+  "valuation": {
+    "market_based": {
+      "market_cap": {},
+      "enterprise_value": {}
+    },
+    "multiples": {
+      "price_to_earnings": {},
+      "price_to_sales": {},
+      "price_to_book": {},
+      "ev_to_ebitda": {},
+      "ev_to_ebit": {},
+      "price_to_free_cash_flow": {}
+    },
+    "yields": {
+      "free_cash_flow_yield": {},
+      "dividend_yield": {}
+    }
+  }
+}
