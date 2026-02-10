@@ -90,6 +90,15 @@
     );
   }
 
+  function getStore() {
+    const app = document.querySelector("#app");
+    return (
+      app?.__vue__?.$store ||
+      app?.__vue_app__?.config?.globalProperties?.$store ||
+      null
+    );
+  }
+
   function urlsMatch(a, b) {
     try {
       const ua = new URL(a);
@@ -291,6 +300,126 @@
     catch (e) { warn("clipboard write failed", { runId, error: String(e) }); }
   }
 
+  /**
+   * Adds ALL chartable rows from the current financial table to the Highchart.
+   * Works on Financials tabs (IS, BS, CF) and Ratios.
+   *
+   * Row-ID patterns (reverse-engineered from TIKR's own click handlers):
+   *   val  → "val-{name}  {dataitemid}"
+   *   pct  → "pct-{name}  {dataitemid}"
+   *   dxdt → "dxdt-{parentValName} {dataitemid[0]}"
+   *   div  → "div-{nameA} {idA}-{nameB} {idB}"
+   */
+  async function tableAddAll(runId) {
+    const store = getStore();
+    if (!store) { err("tableAddAll: no store"); return; }
+
+    const fin = store.state.ciq.financials?.a;
+    if (!fin) { err("tableAddAll: no financials data"); return; }
+
+    // ── Determine which data group to use based on the current tab ──
+    const tab = new URL(location.href).searchParams.get("tab") || "is";
+    const TAB_TO_GROUP = { is: 0, bs: 1, cf: 2, r: 3 };
+    const groupIdx = TAB_TO_GROUP[tab];
+    if (groupIdx == null) {
+      warn("tableAddAll: unsupported tab", tab);
+      relay({ type: "TABLE_ADD_ALL_RESULT", added: 0, error: `Tab "${tab}" not supported`, runId });
+      return;
+    }
+
+    const rows = fin.financials?.[groupIdx];
+    if (!rows?.length) {
+      warn("tableAddAll: no rows in group", groupIdx);
+      relay({ type: "TABLE_ADD_ALL_RESULT", added: 0, error: "No data rows", runId });
+      return;
+    }
+
+    const period = store.state.ciq.financialsChart?.a ? "a" : "a"; // always annual for now
+    const current = store.state.ciq.financialsChart?.a ?? {};
+
+    // ── Build a map: dataitemid → lowercase name (val rows only) ──
+    const idToName = {};
+    for (const row of rows) {
+      if (row.formula === "val" && typeof row.dataitemid === "number") {
+        idToName[String(row.dataitemid)] = row.name.toLowerCase();
+      }
+    }
+
+    // ── Track parent val name for dxdt rows ──
+    let parentValName = "";
+    let added = 0;
+    const skipped = [];
+
+    for (const row of rows) {
+      const formula = row.formula;
+
+      // Skip headers and rows without data
+      if (formula === "h3") continue;
+      const hasData = Object.keys(row).some((k) => k.includes("##"));
+      if (!hasData) continue;
+
+      // Update parent tracking
+      if (formula === "val") {
+        parentValName = row.name.toLowerCase();
+      }
+
+      // ── Build rowId ──
+      let rowId;
+
+      if (formula === "val") {
+        rowId = `${formula}-${row.name.toLowerCase()} ${row.dataitemid}`;
+      } else if (formula === "pct") {
+        rowId = `${formula}-${row.name.toLowerCase()} ${row.dataitemid}`;
+      } else if (formula === "dxdt" && Array.isArray(row.dataitemid)) {
+        // Uses the parent val row's name
+        rowId = `dxdt-${parentValName} ${row.dataitemid[0]}`;
+      } else if (formula === "div" && Array.isArray(row.dataitemid) && row.dataitemid.length >= 2) {
+        const nameA = idToName[row.dataitemid[0]] || row.dataitemid[0];
+        const nameB = idToName[row.dataitemid[1]] || row.dataitemid[1];
+        rowId = `div-${nameA} ${row.dataitemid[0]}-${nameB} ${row.dataitemid[1]}`;
+      } else {
+        // Fallback for any other formula
+        const did = Array.isArray(row.dataitemid) ? row.dataitemid.join(",") : row.dataitemid;
+        rowId = `${formula}-${row.name.toLowerCase()} ${did}`;
+      }
+
+      // Skip if already in chart
+      if (rowId in current) {
+        skipped.push(rowId);
+        continue;
+      }
+
+      // ── Commit to chart ──
+      try {
+        store.commit("ciq/addToChart", {
+          row:       row,
+          rowId:     rowId,
+          chartType: "financialsChart",
+          period:    period,
+        });
+        added++;
+      } catch (e) {
+        warn("tableAddAll: commit failed", { rowId, error: String(e) });
+      }
+
+      await sleep(30); // small pause for Vue reactivity
+    }
+
+    const total = Object.keys(store.state.ciq.financialsChart?.a ?? {}).length;
+    log("tableAddAll done", { runId, added, skipped: skipped.length, totalInChart: total });
+
+    toast(`✅ Added ${added} metrics to chart (${total} total)`);
+
+    relay({
+      type:    "TABLE_ADD_ALL_RESULT",
+      added,
+      skipped: skipped.length,
+      total,
+      tab,
+      runId,
+    });
+  }
+
   // Escucha SCRAPE_CMD desde content.js
   document.addEventListener("__tikr_to_main", (e) => {
     const raw = e?.detail;
@@ -309,11 +438,14 @@
         }
         run(msg.jobs, msg.period || "annual", msg.runId || null);
       }
+      if (msg.type === "TABLE_ADD_ALL_CMD") {
+        tableAddAll(msg.runId || null);
+      }
     } catch (ex) {
       err("failed parsing __tikr_to_main.detail", String(ex));
     }
   });
 
-  window.__tikrScraper = { run, JOBS };
+  window.__tikrScraper = { run, JOBS, tableAddAll };
   log("tikr_scraper ready", { href: location.href });
 })();

@@ -92,6 +92,21 @@ scrapeBtn.addEventListener("click", async () => {
   }
 });
 
+// Chart Tools: Add All to Chart
+document.getElementById("tableAddAll").addEventListener("click", async () => {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id) return;
+
+  const runId = "addall-" + Date.now();
+  document.getElementById("chartStatus").textContent = "Adding all metrics…";
+
+  chrome.runtime.sendMessage({
+    type:  "TABLE_ADD_ALL",
+    tabId: tab.id,
+    runId,
+  });
+});
+
 chrome.runtime.onMessage.addListener((msg) => {
   if (!msg?.type) return;
 
@@ -113,6 +128,16 @@ chrome.runtime.onMessage.addListener((msg) => {
     copyBtn.disabled = !out.value;
     setBusy(false);
     setStatus(out.value ? "✅ Picked table (Markdown ready)" : "Pick cancelled/empty");
+    return;
+  }
+
+  if (msg.type === "TABLE_ADD_ALL_RESULT") {
+    if (msg.error) {
+      document.getElementById("chartStatus").textContent = `⚠ ${msg.error}`;
+    } else {
+      document.getElementById("chartStatus").textContent =
+        `✅ Added ${msg.added} metrics (${msg.total} total, ${msg.skipped} already present)`;
+    }
     return;
   }
 });

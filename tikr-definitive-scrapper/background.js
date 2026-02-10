@@ -81,6 +81,20 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return false;
     }
 
+    // ── NEW: Add all table rows to chart ──
+    if (msg?.type === "TABLE_ADD_ALL") {
+      if (!tabId) throw new Error("TABLE_ADD_ALL without tabId");
+      const cmd = {
+        type:  "TABLE_ADD_ALL_CMD",
+        runId: msg.runId || null,
+      };
+      pendingByTabId.set(tabId, cmd);
+      log("pending set", { tabId, pendingType: cmd.type, runId: cmd.runId });
+      injectAll(tabId, cmd.runId);
+      sendResponse?.({ ok: true });
+      return false;
+    }
+
     if (msg?.type === "CONTENT_READY") {
       const tId = tabIdFromSender ?? tabId;
       const cmd = tId ? pendingByTabId.get(tId) : null;
@@ -103,7 +117,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     }
 
     // Relay de resultados/progreso hacia el sidepanel (popup.js escucha runtime.onMessage)
-    if (msg?.type === "MD_RESULT" || msg?.type === "SCRAPE_PROGRESS" || msg?.type === "SCRAPE_DONE") {
+    if (
+      msg?.type === "MD_RESULT"            ||
+      msg?.type === "SCRAPE_PROGRESS"      ||
+      msg?.type === "SCRAPE_DONE"          ||
+      msg?.type === "TABLE_ADD_ALL_RESULT"
+    ) {
       chrome.runtime.sendMessage(msg).catch((e) => {
         // Si el panel está cerrado, no pasa nada
         warn("relay runtime.sendMessage rejected (panel closed?)", String(e));

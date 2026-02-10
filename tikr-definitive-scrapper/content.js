@@ -165,6 +165,13 @@
         return false;
       }
 
+      if (msg?.type === "TABLE_ADD_ALL_CMD") {
+        log("forwarding TABLE_ADD_ALL_CMD to MAIN", { runId: msg.runId });
+        document.dispatchEvent(new CustomEvent("__tikr_to_main", { detail: JSON.stringify(msg) }));
+        sendResponse?.({ ok: true });
+        return false;
+      }
+
       sendResponse?.({ ok: true, ignored: true });
       return false;
 
