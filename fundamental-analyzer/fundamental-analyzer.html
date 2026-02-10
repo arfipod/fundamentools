@@ -82,6 +82,15 @@ body{
 .btn-analyze:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(56,189,248,0.35)}
 .btn-analyze:active{transform:translateY(0)}
 #error-msg{color:var(--red);margin-top:.75rem;font-size:.9rem;display:none}
+.profile-select{
+  margin-top:.9rem;
+  background:var(--surface);
+  border:1.5px solid var(--border);
+  color:var(--text);
+  border-radius:var(--radius-sm);
+  padding:.55rem .7rem;
+  font-size:.85rem;
+}
 
 /* DASHBOARD */
 #dashboard{display:none;padding:1.5rem;max-width:1440px;margin:0 auto}
@@ -239,6 +248,16 @@ body{
   <div class="input-wrap">
     <textarea id="dataInput" placeholder="Paste your TIKR financial data here...&#10;&#10;Example format:&#10;MEDP – Medpace Holdings, Inc.&#10;Price: US$530.35 | Extracted: ...&#10;Period: annual | Sections: 7&#10;---&#10;Income Statement&#10;| Cuenta de resultados | TIKR.com | 31/12/13 | ..."></textarea>
     <div style="display:flex;justify-content:center">
+      <select id="profileSelect" class="profile-select" aria-label="Industry profile">
+        <option value="default">Profile: Default</option>
+        <option value="saas">Profile: SaaS / Asset-light</option>
+        <option value="retail">Profile: Retail / Distribution</option>
+        <option value="industrial">Profile: Industrial</option>
+        <option value="financial">Profile: Financials</option>
+        <option value="utility">Profile: Utility / Telecom</option>
+      </select>
+    </div>
+    <div style="display:flex;justify-content:center">
       <button class="btn-analyze" onclick="analyzeData()">Analyze Financials</button>
     </div>
     <div id="error-msg"></div>
@@ -393,12 +412,63 @@ function yoyGrowth(vals) {
   });
 }
 
-// Helper to create a standard analysis item
-function makeItem(name, detail, vals, signal, signalText, explanation) {
-  return { name, detail: detail || '', values: vals || [], signal: signal || 'neutral', signalText: signalText || '', explanation: explanation || '' };
+function median(arr) {
+  const valid = arr.filter(v => v !== null && !isNaN(v)).sort((a, b) => a - b);
+  if (!valid.length) return null;
+  return valid[Math.floor(valid.length / 2)];
 }
 
-function analyze(data) {
+function safeGrowthScore(vals) {
+  const v = (vals || []).filter(x => x !== null && !isNaN(x));
+  if (v.length < 3) return { kind: 'na', value: null };
+  const first = v[0];
+  const latest = v[v.length - 1];
+  const allPos = v.every(x => x > 0);
+  if (allPos) {
+    return { kind: 'cagr', value: cagr(first, latest, v.length - 1) };
+  }
+  return { kind: 'median_yoy', value: median(yoyGrowth(v)) };
+}
+
+function getConfidence(vals) {
+  const total = (vals || []).length;
+  if (total === 0) return 0.25;
+  const valid = vals.filter(v => v !== null && !isNaN(v)).length;
+  return Math.min(1, Math.max(0.25, valid / Math.max(3, total)));
+}
+
+const PROFILE_THRESHOLDS = {
+  gross_margin: {
+    default: { bull: 40, neutral: 25 }, saas: { bull: 70, neutral: 55 }, retail: { bull: 30, neutral: 18 }, industrial: { bull: 35, neutral: 20 }, financial: { bull: 35, neutral: 20 }, utility: { bull: 35, neutral: 22 }
+  },
+  roic: {
+    default: { bull: 20, neutral: 10 }, saas: { bull: 18, neutral: 10 }, retail: { bull: 14, neutral: 8 }, industrial: { bull: 15, neutral: 8 }, financial: { bull: 12, neutral: 6 }, utility: { bull: 10, neutral: 6 }
+  },
+  ev_ebitda: {
+    default: { bull: 12, neutral: 20 }, saas: { bull: 20, neutral: 30 }, retail: { bull: 10, neutral: 16 }, industrial: { bull: 11, neutral: 17 }, financial: { bull: 14, neutral: 22 }, utility: { bull: 11, neutral: 16 }
+  }
+};
+
+function metricThreshold(metric, profile, kind) {
+  const node = PROFILE_THRESHOLDS[metric] || {};
+  const scope = node[profile] || node.default || {};
+  return scope[kind];
+}
+
+// Helper to create a standard analysis item
+function makeItem(name, detail, vals, signal, signalText, explanation) {
+  return {
+    name,
+    detail: detail || '',
+    values: vals || [],
+    signal: signal || 'neutral',
+    signalText: signalText || '',
+    explanation: explanation || '',
+    confidence: getConfidence(vals || [])
+  };
+}
+
+function analyze(data, profile = 'default') {
   const results = { scores: {}, sections: [] };
   const is = data.sections['Income Statement'];
   const bs = data.sections['Balance Sheet'];
@@ -474,10 +544,11 @@ function analyze(data) {
     const latest = vals[vals.length - 1];
     const first = vals[0];
     const years = vals.length - 1;
-    const gr = cagr(Math.abs(first), Math.abs(latest), years);
+    const growth = safeGrowthScore(vals);
+    const gr = growth.value;
     growthItems.push(makeItem(
       'EPS Growth (Diluted)',
-      gr !== null ? `${years}Y CAGR: ${gr.toFixed(1)}%` : 'N/A',
+      gr !== null ? `${growth.kind === 'cagr' ? `${years}Y CAGR` : 'Median YoY'}: ${gr.toFixed(1)}%` : 'N/A',
       vals,
       gr > 15 ? 'bull' : gr > 8 ? 'neutral' : 'bear',
       gr > 15 ? 'Excellent' : gr > 8 ? 'Good' : 'Weak'
@@ -523,10 +594,11 @@ function analyze(data) {
     const vals = getRecentValues(opIncRow, 10);
     const latest = vals[vals.length - 1];
     const first = vals[0];
-    const gr = cagr(Math.abs(first), Math.abs(latest), vals.length - 1);
+    const growth = safeGrowthScore(vals);
+    const gr = growth.value;
     growthItems.push(makeItem(
       'Operating Income Growth',
-      gr !== null ? `CAGR: ${gr.toFixed(1)}%` : 'N/A',
+      gr !== null ? `${growth.kind === 'cagr' ? 'CAGR' : 'Median YoY'}: ${gr.toFixed(1)}%` : 'N/A',
       vals,
       gr > 12 ? 'bull' : gr > 5 ? 'neutral' : 'bear',
       gr > 12 ? 'Strong' : gr > 5 ? 'Moderate' : 'Weak'
@@ -538,10 +610,11 @@ function analyze(data) {
     const vals = getRecentValues(netIncRow, 10);
     const latest = vals[vals.length - 1];
     const first = vals[0];
-    const gr = cagr(Math.abs(first), Math.abs(latest), vals.length - 1);
+    const growth = safeGrowthScore(vals);
+    const gr = growth.value;
     growthItems.push(makeItem(
       'Net Income Growth',
-      gr !== null ? `CAGR: ${gr.toFixed(1)}%` : 'N/A',
+      gr !== null ? `${growth.kind === 'cagr' ? 'CAGR' : 'Median YoY'}: ${gr.toFixed(1)}%` : 'N/A',
       vals,
       gr > 12 ? 'bull' : gr > 5 ? 'neutral' : 'bear',
       gr > 12 ? 'Strong' : gr > 5 ? 'Moderate' : 'Weak'
@@ -553,10 +626,11 @@ function analyze(data) {
     const vals = getRecentValues(fcfRow, 10);
     const latest = vals[vals.length - 1];
     const first = vals[0];
-    const gr = cagr(Math.abs(first), Math.abs(latest), vals.length - 1);
+    const growth = safeGrowthScore(vals);
+    const gr = growth.value;
     growthItems.push(makeItem(
       'Free Cash Flow Growth',
-      gr !== null ? `CAGR: ${gr.toFixed(1)}%` : 'N/A',
+      gr !== null ? `${growth.kind === 'cagr' ? 'CAGR' : 'Median YoY'}: ${gr.toFixed(1)}%` : 'N/A',
       vals,
       gr > 12 ? 'bull' : gr > 5 ? 'neutral' : 'bear',
       gr > 12 ? 'Strong' : gr > 5 ? 'Decent' : 'Weak'
@@ -587,8 +661,8 @@ function analyze(data) {
       'Gross Margin',
       `Latest: ${latest?.toFixed(1)}% — Trend: ${trend}`,
       vals,
-      latest > 40 ? 'bull' : latest > 25 ? 'neutral' : 'bear',
-      latest > 50 ? 'Wide Moat' : latest > 40 ? 'Strong' : latest > 25 ? 'Decent' : 'Thin',
+      latest > metricThreshold('gross_margin', profile, 'bull') ? 'bull' : latest > metricThreshold('gross_margin', profile, 'neutral') ? 'neutral' : 'bear',
+      latest > metricThreshold('gross_margin', profile, 'bull') + 10 ? 'Wide Moat' : latest > metricThreshold('gross_margin', profile, 'bull') ? 'Strong' : latest > metricThreshold('gross_margin', profile, 'neutral') ? 'Decent' : 'Thin',
       sd !== null ? `Stability: σ=${sd.toFixed(1)}pp (${sd < 3 ? 'very stable' : sd < 6 ? 'stable' : 'volatile'})` : ''
     ));
   }
@@ -689,8 +763,8 @@ function analyze(data) {
     const cogsVals = getRecentValues(cogsRow, 6);
     const revVals = getRecentValues(revenueRow, 6);
     if (cogsVals.length >= 2 && revVals.length >= 2) {
-      const latestPct = (cogsVals[cogsVals.length - 1] / revVals[revVals.length - 1]) * 100;
-      const firstPct = (cogsVals[0] / revVals[0]) * 100;
+      const latestPct = (Math.abs(cogsVals[cogsVals.length - 1]) / Math.abs(revVals[revVals.length - 1])) * 100;
+      const firstPct = (Math.abs(cogsVals[0]) / Math.abs(revVals[0])) * 100;
       const delta = latestPct - firstPct;
       costItems.push(makeItem(
         'COGS as % of Revenue',
@@ -836,8 +910,8 @@ function analyze(data) {
       'ROIC (Return on Invested Capital)',
       `Latest: ${latest?.toFixed(1)}% | Avg: ${avgVal?.toFixed(1)}% — Trend: ${trend}`,
       vals,
-      latest > 20 ? 'bull' : latest > 10 ? 'neutral' : 'bear',
-      latest > 25 ? 'Exceptional Moat' : latest > 20 ? 'Wide Moat' : latest > 10 ? 'Narrow Moat' : 'No Moat',
+      latest > metricThreshold('roic', profile, 'bull') ? 'bull' : latest > metricThreshold('roic', profile, 'neutral') ? 'neutral' : 'bear',
+      latest > metricThreshold('roic', profile, 'bull') + 5 ? 'Exceptional Moat' : latest > metricThreshold('roic', profile, 'bull') ? 'Wide Moat' : latest > metricThreshold('roic', profile, 'neutral') ? 'Narrow Moat' : 'No Moat',
       'ROIC > WACC (~8-10%) = value creation. Consistency matters more than level'
     ));
   }
@@ -890,14 +964,25 @@ function analyze(data) {
   if (fcfNetRow) {
     const vals = getRecentValues(fcfNetRow, 8);
     const latest = vals[vals.length - 1];
-    moatItems.push(makeItem(
-      'FCF / Net Income (Earnings Quality)',
-      `Latest: ${latest?.toFixed(0)}%`,
-      vals,
-      latest > 100 ? 'bull' : latest > 70 ? 'neutral' : 'bear',
-      latest > 120 ? 'Super Cash Generative' : latest > 100 ? 'Quality Earnings' : latest > 70 ? 'Decent' : 'Accrual Heavy',
-      'FCF > Net Income = real cash earnings; <70% = beware accounting tricks'
-    ));
+    if (latest !== null && latest < 0) {
+      moatItems.push(makeItem(
+        'FCF / Net Income (Earnings Quality)',
+        'Not meaningful: Net Income ≤ 0 in recent period(s)',
+        vals,
+        'neutral',
+        'Not meaningful',
+        'When NI is negative, conversion ratios can invert; use CFO/FCF margin context instead'
+      ));
+    } else {
+      moatItems.push(makeItem(
+        'FCF / Net Income (Earnings Quality)',
+        `Latest: ${latest?.toFixed(0)}%`,
+        vals,
+        latest > 100 ? 'bull' : latest > 70 ? 'neutral' : 'bear',
+        latest > 120 ? 'Super Cash Generative' : latest > 100 ? 'Quality Earnings' : latest > 70 ? 'Decent' : 'Accrual Heavy',
+        'FCF > Net Income = real cash earnings; <70% = beware accounting tricks'
+      ));
+    }
   }
 
   const capexSalesRow = findRowAny(ratios, 'Capex / Sales', 'Capex/Sales');
@@ -1201,16 +1286,28 @@ function analyze(data) {
     const cfoVals = getRecentValues(cfoRow, 6);
     const niVals = getRecentValues(netIncRow, 6);
     if (cfoVals.length >= 3 && niVals.length >= 3) {
-      const ratioVals = cfoVals.map((v, i) => niVals[i] && niVals[i] !== 0 ? (v / niVals[i]) * 100 : null).filter(v => v !== null);
-      const avgRatio = avg(ratioVals);
-      cfItems.push(makeItem(
-        'CFO / Net Income (Cash Conversion)',
-        `Average: ${avgRatio?.toFixed(0)}%`,
-        ratioVals,
-        avgRatio > 100 ? 'bull' : avgRatio > 75 ? 'neutral' : 'bear',
-        avgRatio > 120 ? 'Superior Cash Conversion' : avgRatio > 100 ? 'Healthy' : avgRatio > 75 ? 'Moderate' : 'Poor Conversion ⚠️',
-        'CFO should generally exceed Net Income. If not, earnings may include non-cash accruals'
-      ));
+      const allMeaningful = niVals.every(v => v !== null && v > 0);
+      if (!allMeaningful) {
+        cfItems.push(makeItem(
+          'CFO / Net Income (Cash Conversion)',
+          'Not meaningful: Net Income ≤ 0 in one or more periods',
+          [],
+          'neutral',
+          'Not meaningful',
+          'Use CFO margin / FCF margin when earnings are negative or near zero'
+        ));
+      } else {
+        const ratioVals = cfoVals.map((v, i) => niVals[i] ? (v / niVals[i]) * 100 : null).filter(v => v !== null);
+        const avgRatio = avg(ratioVals);
+        cfItems.push(makeItem(
+          'CFO / Net Income (Cash Conversion)',
+          `Average: ${avgRatio?.toFixed(0)}%`,
+          ratioVals,
+          avgRatio > 100 ? 'bull' : avgRatio > 75 ? 'neutral' : 'bear',
+          avgRatio > 120 ? 'Superior Cash Conversion' : avgRatio > 100 ? 'Healthy' : avgRatio > 75 ? 'Moderate' : 'Poor Conversion ⚠️',
+          'CFO should generally exceed Net Income. If not, earnings may include non-cash accruals'
+        ));
+      }
     }
   }
 
@@ -1505,8 +1602,8 @@ function analyze(data) {
       'EV/EBITDA (NTM)',
       `Latest: ${latest?.toFixed(1)}x | Hist Avg: ${avgVal?.toFixed(1)}x`,
       vals,
-      latest < 12 ? 'bull' : latest < 20 ? 'neutral' : 'bear',
-      latest < 10 ? 'Cheap' : latest < 12 ? 'Attractive' : latest < 20 ? 'Fair' : 'Rich'
+      latest < metricThreshold('ev_ebitda', profile, 'bull') ? 'bull' : latest < metricThreshold('ev_ebitda', profile, 'neutral') ? 'neutral' : 'bear',
+      latest < metricThreshold('ev_ebitda', profile, 'bull') - 2 ? 'Cheap' : latest < metricThreshold('ev_ebitda', profile, 'bull') ? 'Attractive' : latest < metricThreshold('ev_ebitda', profile, 'neutral') ? 'Fair' : 'Rich'
     ));
   }
 
@@ -1862,9 +1959,13 @@ function analyze(data) {
   // ══════════════════════════════════════════════════════════
   const gradeValues = { excellent: 4, good: 3, average: 2, poor: 1 };
   const scoreKeys = Object.keys(results.scores);
-  const validScores = scoreKeys.map(k => gradeValues[results.scores[k]]).filter(v => v);
+  const validScores = results.sections
+    .filter(sec => gradeValues[sec.grade])
+    .map(sec => ({ grade: gradeValues[sec.grade], weight: avg(sec.items.map(i => i.confidence || 0.5)) || 0.5 }));
   if (validScores.length) {
-    const avgScore = validScores.reduce((a, b) => a + b, 0) / validScores.length;
+    const weightedSum = validScores.reduce((s, item) => s + item.grade * item.weight, 0);
+    const weightTotal = validScores.reduce((s, item) => s + item.weight, 0);
+    const avgScore = weightedSum / weightTotal;
     results.overall = avgScore >= 3.5 ? 'excellent' : avgScore >= 2.5 ? 'good' : avgScore >= 1.5 ? 'average' : 'poor';
     results.overallScore = avgScore;
   }
@@ -1958,6 +2059,7 @@ function renderDashboard(data, results) {
             <div class="metric-name">${item.name}</div>
             <div class="metric-detail">${item.detail || ''}</div>
             ${item.explanation ? `<div class="metric-values">${item.explanation}</div>` : ''}
+            <div class="metric-values">Confidence: ${(item.confidence * 100).toFixed(0)}%</div>
             ${renderTrendBars(item.values)}
           </div>
           <div class="signal ${sigCls}">
@@ -2033,7 +2135,8 @@ function analyzeData() {
       errEl.style.display = 'block';
       return;
     }
-    const results = analyze(data);
+    const selectedProfile = document.getElementById('profileSelect').value || 'default';
+    const results = analyze(data, selectedProfile);
     document.getElementById('landing').style.display = 'none';
     document.getElementById('dashboard').style.display = 'block';
     renderDashboard(data, results);
