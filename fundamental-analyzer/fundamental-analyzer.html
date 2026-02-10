@@ -294,13 +294,45 @@ function parseNumber(s) {
   return neg ? -val : val;
 }
 
+
+function splitMarkdownRow(row) {
+  // Protect escaped pipes (\\|) so we only split on real column separators.
+  const sentinel = '\u241F';
+  const protectedRow = row.replace(/\\\|/g, sentinel);
+
+  const cells = protectedRow
+    .split('|')
+    .map(c => c.replaceAll(sentinel, '|').trim());
+
+  // remove leading/trailing empty cell due to leading/trailing pipe
+  return cells.filter((c, i) => i > 0 && i < cells.length - 1);
+}
 function parseTIKR(raw) {
   const lines = raw.split('\n').map(l => l.trim()).filter(l => l);
   const data = { ticker: '', company: '', price: null, priceNum: null, extractDate: '', period: '', sections: {} };
-  const tickerLine = lines[0] || '';
-  const tickerMatch = tickerLine.match(/^([A-Z0-9.]+)\s*[–—-]\s*(.+)/);
-  if (tickerMatch) { data.ticker = tickerMatch[1]; data.company = tickerMatch[2]; }
-  else { data.company = tickerLine; }
+  const firstLineRaw = (lines[0] || '').replace(/^#+\s*/, '').trim();
+
+  let ticker = '';
+  let company = '';
+
+  // Case A: "VEEV – Company Name"
+  let m = firstLineRaw.match(/^([A-Z0-9.]+)\s*[–—-]\s*(.+)$/);
+
+  // Case B: "– VEEV US$188.29 ..."
+  if (!m) m = firstLineRaw.match(/^[–—-]\s*([A-Z0-9.]+)\b\s*(.*)$/);
+
+  if (m) {
+    ticker = (m[1] || '').trim();
+    company = (m[2] || '').trim();
+  } else {
+    // last fallback: first "ticker-like" token
+    const t = firstLineRaw.match(/\b[A-Z]{1,10}(?:\.[A-Z]{1,5})?\b/);
+    if (t) ticker = t[0];
+  }
+
+  data.ticker = ticker;
+  data.company = company || data.company || firstLineRaw;
+
 
   for (const l of lines) {
     const pm = l.match(/Price:\s*(US\$[\d.,]+)/);
@@ -309,6 +341,15 @@ function parseTIKR(raw) {
     if (dm) data.extractDate = dm[1];
     const prm = l.match(/Period:\s*(\w+)/);
     if (prm) data.period = prm[1];
+  }
+
+  // Try to capture price from the headline if "Price:" line doesn't contain it
+  if (!data.price) {
+    const p = firstLineRaw.match(/US\$\s*[\d.,]+/);
+    if (p) {
+      data.price = p[0].replace(/\s+/g, '');  // "US$188.29"
+      data.priceNum = parseNumber(p[0]);
+    }
   }
 
   const sectionNames = [
@@ -334,7 +375,7 @@ function parseTIKR(raw) {
     const parsed = [];
     let dates = [];
     for (const row of rows) {
-      const cells = row.split('|').map(c => c.trim()).filter((c, i, arr) => i > 0 && i < arr.length);
+      const cells = splitMarkdownRow(row);
       if (cells.length < 2) continue;
       if (cells[0] === '---' || cells.every(c => c === '---' || c === '')) continue;
       const label = cells[0];
@@ -503,7 +544,15 @@ function analyze(data, profile = 'default') {
   // ══════════════════════════════════════════════════════════
   const growthItems = [];
 
-  const revenueRow = findRowAny(is, 'Ingresos totales', 'Revenue As Reported', 'Total Revenue');
+  const revenueRow = findRowAny(
+    is,
+    'Ingresos totales',
+    'Revenue As Reported',
+    'Total Revenue',
+    'Total Revenues',
+    'Revenues',
+    'Sales'
+  );
   if (revenueRow) {
     const vals = getRecentValues(revenueRow, 10);
     const latest = vals[vals.length - 1];
@@ -649,7 +698,13 @@ function analyze(data, profile = 'default') {
   // ══════════════════════════════════════════════════════════
   const marginItems = [];
 
-  const grossRow = findRowAny(is, 'Márgenes brutos', ['Margen', 'bruto']);
+  const grossRow = findRowAny(
+    is,
+    ['gross', 'margin'],
+    ['margen', 'bruto'],
+    'Gross Margin',
+    '% Gross'
+  );
   const grossRowR = findRowAny(ratios, 'Margen de beneficio bruto', 'Gross Margin');
   const grossSrc = grossRow || grossRowR;
   if (grossSrc) {
@@ -667,7 +722,13 @@ function analyze(data, profile = 'default') {
     ));
   }
 
-  const opRow = findRowAny(is, 'Márgenes operativos', ['Margen', 'operativo']);
+  const opRow = findRowAny(
+    is,
+    ['operating', 'margin'],
+    ['margen', 'operativo'],
+    'Operating Margin',
+    '% Operating'
+  );
   const opRowR = findRowAny(ratios, 'Margen EBIT', 'Operating Margin');
   const opSrc = opRow || opRowR;
   if (opSrc) {
@@ -777,7 +838,12 @@ function analyze(data, profile = 'default') {
   }
 
   // SG&A analysis
-  const sgaRow = findRowAny(is, 'Gastos de venta', 'Selling, General', 'SG&A');
+  const sgaRow = findRowAny(
+    is,
+    'Gastos de venta',
+    'SG&A',
+    ['selling', 'general', 'admin']
+  );
   if (sgaRow && revenueRow) {
     const sgaVals = getRecentValues(sgaRow, 6);
     const revVals = getRecentValues(revenueRow, 6);
@@ -797,7 +863,13 @@ function analyze(data, profile = 'default') {
   }
 
   // R&D analysis
-  const rdRow = findRowAny(is, 'Gastos de investigación', 'Research and Development', 'R&D');
+  const rdRow = findRowAny(
+    is,
+    'Gastos de investigación',
+    'Research and Development',
+    'R&D',
+    ['r&d', 'expense']
+  );
   if (rdRow && revenueRow) {
     const rdVals = getRecentValues(rdRow, 6);
     const revVals = getRecentValues(revenueRow, 6);
@@ -1530,8 +1602,9 @@ function analyze(data, profile = 'default') {
   const valItems = [];
 
   // Market Cap & EV
-  const mcRow = findRowAny(vm, 'Capitalización bursátil', 'Market Cap');
-  const evRow = findRowAny(vm, 'Valor total de la empresa', 'Total Enterprise Value', 'Enterprise Value');
+  const vmOrIS = vm || is;
+  const mcRow = findRowAny(vmOrIS, 'Capitalización bursátil', 'Market Cap');
+  const evRow = findRowAny(vmOrIS, 'Valor total de la empresa', 'Total Enterprise Value', 'Enterprise Value', 'TEV');
   if (mcRow && evRow) {
     const mc = getLatest(mcRow);
     const ev = getLatest(evRow);
