@@ -782,7 +782,7 @@ function analyze(data, profile = 'default', options = {}) {
     const bullCount = growthItems.filter(i => i.signal === 'bull').length;
     const grade = bullCount >= 4 ? 'excellent' : bullCount >= 2 ? 'good' : bullCount >= 1 ? 'average' : 'poor';
     results.scores.growth = grade;
-    results.sections.push({ title: 'Growth', icon: '📈', grade, items: growthItems });
+    results.sections.push({ id: 'growth', title: 'Growth', icon: '📈', grade, items: growthItems });
   }
 
   // ══════════════════════════════════════════════════════════
@@ -902,7 +902,7 @@ function analyze(data, profile = 'default', options = {}) {
     const bullCount = marginItems.filter(i => i.signal === 'bull').length;
     const grade = bullCount >= 4 ? 'excellent' : bullCount >= 2 ? 'good' : bullCount >= 1 ? 'average' : 'poor';
     results.scores.margins = grade;
-    results.sections.push({ title: 'Profitability & Margins', icon: '💰', grade, items: marginItems });
+    results.sections.push({ id: 'margins', title: 'Profitability & Margins', icon: '💰', grade, items: marginItems });
   }
 
   // ══════════════════════════════════════════════════════════
@@ -1075,7 +1075,7 @@ function analyze(data, profile = 'default', options = {}) {
     const bearCount = costItems.filter(i => i.signal === 'bear').length;
     const grade = bullCount >= 3 ? 'excellent' : bullCount >= 2 ? 'good' : bearCount >= 2 ? 'poor' : 'average';
     results.scores.costs = grade;
-    results.sections.push({ title: 'Cost Structure & OpEx', icon: '🏗️', grade, items: costItems });
+    results.sections.push({ id: 'costs', title: 'Cost Structure & OpEx', icon: '🏗️', grade, items: costItems });
   }
 
   // ══════════════════════════════════════════════════════════
@@ -1326,7 +1326,7 @@ function analyze(data, profile = 'default', options = {}) {
     const bearCount = bsItems.filter(i => i.signal === 'bear').length;
     const grade = bullCount >= 4 ? 'excellent' : bullCount >= 2 ? 'good' : bearCount >= 3 ? 'poor' : 'average';
     results.scores.balance = grade;
-    results.sections.push({ title: 'Balance Sheet Composition', icon: '📊', grade, items: bsItems });
+    results.sections.push({ id: 'balance-composition', title: 'Balance Sheet Composition', icon: '📊', grade, items: bsItems });
   }
 
   // ══════════════════════════════════════════════════════════
@@ -1440,7 +1440,7 @@ function analyze(data, profile = 'default', options = {}) {
     const bearCount = debtItems.filter(i => i.signal === 'bear').length;
     const grade = bullCount >= 4 ? 'excellent' : bullCount >= 2 ? 'good' : bearCount >= 3 ? 'poor' : bullCount >= 1 ? 'average' : 'poor';
     results.scores.debt = grade;
-    results.sections.push({ title: 'Debt & Financial Health', icon: '🏦', grade, items: debtItems });
+    results.sections.push({ id: 'debt', title: 'Debt & Financial Health', icon: '🏦', grade, items: debtItems });
   }
 
   // ══════════════════════════════════════════════════════════
@@ -1582,7 +1582,7 @@ function analyze(data, profile = 'default', options = {}) {
     const bearCount = cfItems.filter(i => i.signal === 'bear').length;
     const grade = bullCount >= 4 ? 'excellent' : bullCount >= 2 ? 'good' : bearCount >= 3 ? 'poor' : 'average';
     results.scores.cashflow = grade;
-    results.sections.push({ title: 'Cash Flow Quality', icon: '💸', grade, items: cfItems });
+    results.sections.push({ id: 'cashflow', title: 'Cash Flow Quality', icon: '💸', grade, items: cfItems });
   }
 
   // ══════════════════════════════════════════════════════════
@@ -1704,7 +1704,7 @@ function analyze(data, profile = 'default', options = {}) {
     const bullCount = effItems.filter(i => i.signal === 'bull').length;
     const grade = bullCount >= 3 ? 'excellent' : bullCount >= 2 ? 'good' : bullCount >= 1 ? 'average' : 'poor';
     results.scores.efficiency = grade;
-    results.sections.push({ title: 'Efficiency & Operations', icon: '⚙️', grade, items: effItems });
+    results.sections.push({ id: 'efficiency', title: 'Efficiency & Operations', icon: '⚙️', grade, items: effItems });
   }
 
   // ══════════════════════════════════════════════════════════
@@ -2014,7 +2014,7 @@ function analyze(data, profile = 'default', options = {}) {
     const bullCount = shItems.filter(i => i.signal === 'bull').length;
     const grade = bullCount >= 3 ? 'excellent' : bullCount >= 2 ? 'good' : bullCount >= 1 ? 'average' : 'poor';
     results.scores.shareholder = grade;
-    results.sections.push({ title: 'Dividends & Shareholder Returns', icon: '🎯', grade, items: shItems });
+    results.sections.push({ id: 'shareholder', title: 'Dividends & Shareholder Returns', icon: '🎯', grade, items: shItems });
   }
 
   // ══════════════════════════════════════════════════════════
@@ -2081,7 +2081,7 @@ function analyze(data, profile = 'default', options = {}) {
     }
 
     if (estItems.length) {
-      results.sections.push({ title: 'Consensus Estimates', icon: '🔭', grade: 'info', items: estItems });
+      results.sections.push({ id: 'consensus', title: 'Consensus Estimates', icon: '🔭', grade: 'info', items: estItems });
     }
   }
 
@@ -2420,10 +2420,10 @@ function renderDashboard(data, results) {
   // 2-minute scorecard
   const byId = id => results.sections.find(s => s.id === id);
   const catDefs = [
-    { k:'Quality', sec:['harmony','cashflow-truth','margins'], href:'#harmony' },
-    { k:'Moat', sec:['moat','margins'], href:'#moat' },
-    { k:'Financial Risk', sec:['balance','balanceSheet'], href:'#balance' },
-    { k:'Valuation', sec:['valuation','valuation-philosophy'], href:'#valuation-philosophy' }
+    { k:'Quality',        sec:['harmony','cashflow-truth','margins','cashflow'], href:'#harmony' },
+    { k:'Moat',           sec:['moat','margins'],                                 href:'#moat' },
+    { k:'Financial Risk', sec:['balance','balance-composition','debt'],           href:'#balance' },
+    { k:'Valuation',      sec:['valuation','valuation-philosophy'],              href:'#valuation-philosophy' }
   ];
   html += `<div class="score-row">`;
   catDefs.forEach(cat => {
@@ -2537,10 +2537,49 @@ function buildSummary(data, results) {
 // =========================================================
 // MAIN
 // =========================================================
+function showDashboard() {
+  document.getElementById('landing').style.display = 'none';
+  const d = document.getElementById('dashboard');
+  d.style.display = 'block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function showLanding() {
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('landing').style.display = 'flex';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function goBack() {
+  // optional: keep previous pasted text; if you want to clear it, uncomment next line
+  // document.getElementById('dataInput').value = '';
+  document.getElementById('dashboard').innerHTML = '';
+  showLanding();
+}
+
+// Profile UI toggle
+function syncCustomProfileUI() {
+  const sel = document.getElementById('profileSelect');
+  const wrap = document.getElementById('customProfileWrap');
+  wrap.style.display = sel.value === 'custom' ? 'block' : 'none';
+}
+
+// Run once on load
+document.addEventListener('DOMContentLoaded', () => {
+  syncCustomProfileUI();
+  document.getElementById('profileSelect')?.addEventListener('change', syncCustomProfileUI);
+
+  // QoL: Ctrl/Cmd + Enter triggers analyze
+  document.getElementById('dataInput')?.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') analyzeData();
+  });
+});
+
 function analyzeData() {
   const raw = document.getElementById('dataInput').value.trim();
   const errEl = document.getElementById('error-msg');
   errEl.style.display = 'none';
+  errEl.textContent = '';
 
   if (!raw || raw.length < 100) {
     errEl.textContent = 'Please paste the full TIKR financial data (it seems too short).';
@@ -2550,35 +2589,44 @@ function analyzeData() {
 
   try {
     const data = parseTIKR(raw);
-    if (Object.keys(data.sections).length === 0) {
-      errEl.textContent = 'Could not detect any financial sections. Make sure you pasted the full TIKR data.';
+
+    // Basic sanity: did we actually parse any table rows?
+    const secCount = Object.keys(data.sections || {}).length;
+    const rowCount = Object.values(data.sections || {}).reduce((s, sec) => s + (sec?.rows?.length || 0), 0);
+
+    if (secCount === 0 || rowCount === 0) {
+      errEl.textContent =
+        'No TIKR tables detected. Make sure you pasted the markdown tables (lines starting with "|") including the header row with dates.';
       errEl.style.display = 'block';
       return;
     }
-    const selectedProfile = document.getElementById('profileSelect').value || 'default';
-    const customThresholds = selectedProfile === 'custom' ? parseCustomProfile() : null;
-    const results = analyze(data, selectedProfile, { customThresholds });
-    document.getElementById('landing').style.display = 'none';
-    document.getElementById('dashboard').style.display = 'block';
+
+    const selected = document.getElementById('profileSelect').value;
+
+    let customThresholds = null;
+    let engineProfile = selected;
+
+    if (selected === 'custom') {
+      customThresholds = parseCustomProfile();
+      if (!customThresholds) {
+        errEl.textContent = 'Custom profile JSON is invalid. Fix the JSON and try again.';
+        errEl.style.display = 'block';
+        return;
+      }
+      // Use default profile logic + override thresholds
+      engineProfile = 'default';
+    }
+
+    const results = analyze(data, engineProfile, { customThresholds });
     renderDashboard(data, results);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    showDashboard();
   } catch (e) {
-    errEl.textContent = 'Error parsing data: ' + e.message;
-    errEl.style.display = 'block';
     console.error(e);
+    errEl.textContent = 'Parsing/analyzing failed. Open DevTools console for details.';
+    errEl.style.display = 'block';
   }
 }
 
-function goBack() {
-  document.getElementById('dashboard').style.display = 'none';
-  document.getElementById('landing').style.display = 'flex';
-}
-
-
-document.getElementById('profileSelect').addEventListener('change', (e) => {
-  const showCustom = e.target.value === 'custom';
-  document.getElementById('customProfileWrap').style.display = showCustom ? 'block' : 'none';
-});
 </script>
 </body>
 </html>
