@@ -301,6 +301,7 @@ function parseNumber(s) {
   let neg = false;
   if (s.startsWith('(') && s.endsWith(')')) { neg = true; s = s.slice(1,-1); }
   s = s
+    .replace(/[A-Z]{2,3}\$/gi,'')
     .replace(/US\$/gi,'')
     .replace(/[€£¥]/g,'')
     .replace(/\$/g,'')
@@ -626,6 +627,35 @@ function analyze(data, profile = 'default', options = {}) {
     return null;
   }
 
+  function findRowExact(section, ...labels) {
+    if (!section) return null;
+    const normalized = labels.map(l => l.toLowerCase().trim());
+    return section.rows.find(r => {
+      const l = r.label.toLowerCase().trim();
+      return normalized.includes(l) && r.values.some(v => parseNumber(v) !== null);
+    }) || null;
+  }
+
+  function sumLatestRows(section, ...keywordSets) {
+    if (!section) return null;
+    const rows = [];
+    for (const kw of keywordSets) {
+      const row = Array.isArray(kw) ? findRow(section, ...kw) : findRow(section, kw);
+      if (row && !rows.includes(row)) rows.push(row);
+    }
+    if (!rows.length) return null;
+    let total = 0;
+    let found = false;
+    for (const row of rows) {
+      const val = getLatest(row);
+      if (val !== null) {
+        total += Math.abs(val);
+        found = true;
+      }
+    }
+    return found ? total : null;
+  }
+
   // Pre-detect core rows with broader synonyms for robust parsing
   const revenueRow = findRowAny(is, 'Ingresos totales', 'Total Revenue', 'Total Revenues', 'Revenue As Reported', 'Revenues', 'Sales', 'Ventas');
   const grossProfitRow = findRowAny(is, 'Gross Profit', 'Beneficio bruto', 'Ganancia bruta');
@@ -937,7 +967,7 @@ function analyze(data, profile = 'default', options = {}) {
   }
 
   // Operating Expenses as % of Gross Profit (golden rule)
-  const opExRow = findRowAny(is, 'Operating Expenses', 'Gastos operativos');
+  const opExRow = findRowExact(is, 'Total Operating Expenses', 'Gastos operativos totales') || findRowAny(is, ['total', 'operating', 'expenses'], 'Gastos operativos');
   const opIncomeGolden = opIncomeRowCore;
   if ((grossProfitRow && opIncomeGolden) || (opExRow && grossProfitRow)) {
     const gp = getLatest(grossProfitRow);
@@ -1414,13 +1444,21 @@ function analyze(data, profile = 'default', options = {}) {
     ));
   }
 
-  const interestCovRow = findRowAny(ratios, 'EBIT / Gastos por intereses', 'Interest Coverage', 'EBIT/Interest');
+  const ebitInterestCovRow = findRowAny(ratios, ['EBIT', 'Interest Expense'], ['EBIT', 'Interest']);
+  const ffoInterestCovRow = findRowAny(ratios, ['FFO', 'Interest Coverage']);
+  const ebitdaInterestCovRow = findRowAny(ratios, ['EBITDA', 'Interest Expense'], ['EBITDA', 'Interest']);
+  const interestCovRow = ebitInterestCovRow || ffoInterestCovRow || ebitdaInterestCovRow;
   if (interestCovRow) {
     const vals = getRecentValues(interestCovRow, 6);
     const latest = vals[vals.length - 1];
     if (latest !== null) {
+      const coverageLabel = interestCovRow === ebitInterestCovRow
+        ? 'Interest Coverage (EBIT / Interest)'
+        : interestCovRow === ffoInterestCovRow
+          ? 'Interest Coverage (FFO / Interest)'
+          : 'Interest Coverage (EBITDA / Interest)';
       debtItems.push(makeItem(
-        'Interest Coverage (EBIT / Interest)',
+        coverageLabel,
         `Latest: ${latest?.toFixed(1)}x`,
         vals,
         latest > 8 ? 'bull' : latest > 3 ? 'neutral' : 'bear',
@@ -2256,17 +2294,25 @@ function analyze(data, profile = 'default', options = {}) {
   // Balance sheet reality check
   const balanceItems = [];
   const debtRow = findRowAny(bs, 'Total Debt', 'Deuda total');
-  const cashRowCore = findRowAny(bs, 'Cash and Cash Equivalents', 'Efectivo y equivalentes', 'Cash & Equivalents');
+  const cashRowCore = findRowAny(bs, 'Cash and Cash Equivalents', 'Cash And Equivalents', 'Efectivo y equivalentes', 'Cash & Equivalents');
   const stInvCore2 = findRowAny(bs, 'Short-Term Investments', 'Inversiones a corto plazo');
-  const stDebtCore = findRowAny(bs, 'Short-Term Debt', 'Current Portion', 'Deuda a corto plazo');
+  const stDebtL = sumLatestRows(
+    bs,
+    ['Short-Term Debt'],
+    ['Short Term Borrowings'],
+    ['Current Portion', 'Long-Term Debt'],
+    ['Current Portion', 'Capital Lease'],
+    ['Current Portion', 'Debt'],
+    ['Deuda', 'corto']
+  );
   const cfoLatest = getLatest(cfoRowCore);
   const debtL = getLatest(debtRow), cashL = getLatest(cashRowCore) || 0, stInvL = getLatest(stInvCore2) || 0;
   if (debtL !== null) {
     const netDebt = debtL - (cashL + stInvL);
     balanceItems.push(makeItem('Net Debt / Net Cash', `Net ${netDebt < 0 ? 'Cash' : 'Debt'}: ${Math.abs(netDebt).toFixed(0)}`, [netDebt], netDebt < 0 ? 'bull' : 'neutral', netDebt < 0 ? 'Net Cash (Caja neta)' : 'Net Debt', cfoLatest ? `Net debt / CFO ≈ ${(netDebt / cfoLatest).toFixed(1)}x` : '', { tip: METRIC_TIPS.netDebt }));
   }
-  if (getLatest(stDebtCore) !== null && cashL !== null) {
-    const cov = cashL / (getLatest(stDebtCore) || 1);
+  if (stDebtL !== null && stDebtL > 0 && cashL !== null) {
+    const cov = cashL / stDebtL;
     balanceItems.push(makeItem('Cash / Short-Term Debt', `${cov.toFixed(2)}x coverage`, [cov], cov >= 1 ? 'bull' : cov >= 0.5 ? 'neutral' : 'bear', cov >= 1 ? 'Covered' : cov >= 0.5 ? 'Tight' : 'Refinancing risk'));
   }
   const arDays = findRowAny(ratios, 'Days Sales Outstanding', 'DSO', 'Días de ventas pendientes');
