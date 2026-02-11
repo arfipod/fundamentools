@@ -365,7 +365,74 @@ const DYNAMIC_I18N = {
     'Active Buybacks':'Recompras activas',
     'Heavy Dilution ⚠️':'Fuerte dilución ⚠️',
     'Shrinking ✓':'Reduciéndose ✓',
-    'Excellent Capital Return':'Excelente retorno de capital'
+    'Excellent Capital Return':'Excelente retorno de capital',
+    'annual':'anual',
+    '2-minute Quality':'Calidad en 2 minutos',
+    '2-minute Moat':'Foso en 2 minutos',
+    '2-minute Financial Risk':'Riesgo financiero en 2 minutos',
+    '2-minute Valuation':'Valoración en 2 minutos',
+    'Return on Equity':'Retorno sobre el patrimonio',
+    'Return on Assets':'Retorno sobre activos',
+    'Enterprise Value vs Capitalización de mercado':'Valor de empresa (EV) vs capitalización de mercado',
+    'Enterprise Value vs Market Cap':'Valor de empresa (EV) vs capitalización de mercado',
+    'Revenue vs Earnings Harmony':'Armonía entre ingresos y beneficios',
+    'Harmony':'armonía',
+    'Revenue':'ingresos',
+    'Earnings':'beneficios',
+    'Revenue YoY':'Ingresos interanuales (YoY)',
+    'Earnings YoY':'Beneficios interanuales (YoY)',
+    'Std dev':'desviación estándar',
+    'erratic growth':'crecimiento errático',
+    'Net Profit Margin':'Margen de beneficio neto',
+    'Exceptional':'Excepcional',
+    'Stability':'Estabilidad',
+    'stable':'estable',
+    'up':'al alza',
+    'Gross Δ':'Δ (cambio) bruto',
+    'Op Δ':'Δ (cambio) operativo',
+    'Watch for cost structure issues':'Vigila posibles problemas en la estructura de costes',
+    'Operating Expenses as % of Beneficio bruto':'Gastos operativos como % del beneficio bruto',
+    'Golden rule: OpEx should not eat most gross profit (gastos operativos controlados).':'Regla de oro: el OpEx no debería comerse la mayor parte del beneficio bruto (gastos operativos controlados).',
+    'Controlled':'Controlado',
+    'SG&A':'Gastos de venta, generales y administrativos (SG&A)',
+    'Lower is better — shows operational efficiency':'Cuanto más bajo, mejor — indica eficiencia operativa',
+    'Minimal':'Mínimo',
+    'Beware: high leverage can inflate ROE artificially':'Ojo: un apalancamiento alto puede inflar el ROE artificialmente',
+    'Equity Multiplier':'Multiplicador del patrimonio (apalancamiento)',
+    'Leverage-driven ROE':'ROE impulsado por apalancamiento',
+    'Leveraged':'Apalancada / con alto apalancamiento',
+    'Private equity stress threshold is typically 4-5x':'El umbral de estrés típico en private equity suele ser 4–5x',
+    'Very Low Debt':'Deuda muy baja',
+    'Very Low Deuda':'Deuda muy baja',
+    'Very Efficient':'Muy eficiente',
+    'Excellent Collection':'Excelente gestión de cobros',
+    'Negative CCC = the business generates cash before paying suppliers (very powerful)':'CCC negativo = el negocio genera efectivo antes de pagar a proveedores (muy potente)',
+    'Buybacks reduce share count and boost EPS':'Las recompras reducen el número de acciones y elevan el BPA (EPS)',
+    'Fewer shares = more value per share for existing holders':'Menos acciones = más valor por acción para los accionistas actuales',
+    'Buybacks + dividends as % of market cap':'Recompras + dividendos como % de la capitalización bursátil',
+    'Aligned Crecimiento':'Crecimiento alineado',
+    'Aligned':'Alineado',
+    'Healthy conversion':'Conversión saludable',
+    'Disciplined':'Disciplinado',
+    'Capital allocation context':'Contexto de asignación de capital',
+    'Classic heuristic: net margin >10% good, >20% excellent (sector-aware).':'Heurística clásica: margen neto >10% es bueno, >20% es excelente (dependiendo del sector).',
+    'Classic heuristic: net margin >10 % good, >20 % excellent (sector-aware).':'Heurística clásica: margen neto >10% es bueno, >20% es excelente (dependiendo del sector).',
+    'Gross vs Net Margin':'Margen bruto vs margen neto',
+    'Operating Discipline':'Disciplina operativa',
+    'If gross margin is stable but operating margin falls, overhead is eating profitability.':'Si el margen bruto se mantiene estable pero cae el margen operativo, los costes fijos/estructura se están comiendo la rentabilidad.',
+    'FCF':'flujo de caja libre (FCF)',
+    'Revenue trend: up | Earnings trend: stable | FCF trend: stable':'Tendencia de ingresos: al alza | tendencia de beneficios: estable | tendencia de FCF: estable',
+    'FCF is the crown jewel: rising profits should eventually show up in free cash flow.':'El FCF es la joya de la corona: si los beneficios suben, debería terminar viéndose en el flujo de caja libre.',
+    'Deuda neta / Net Cash':'Deuda neta / caja neta',
+    'Net Cash':'caja neta',
+    'Frequent large acquisitions increase integration risk':'Adquisiciones grandes y frecuentes aumentan el riesgo de integración',
+    'Acquisition-heavy':'Intensiva en adquisiciones',
+    'debt paydown':'amortización de deuda',
+    'cash build':'aumento/acumulación de caja',
+    'buybacks':'recompras',
+    'dividends':'dividendos',
+    'EPS':'BPA (beneficio por acción)',
+    'NI/EPS':'beneficio neto / BPA'
   }
 };
 
@@ -2590,7 +2657,7 @@ function renderDashboard(data, results) {
     <div class="dash-header fade-up">
       <div>
         <h2>${data.ticker ? data.ticker + ' — ' : ''}${data.company}</h2>
-        <span class="price">${data.price || ''} ${data.period ? '• ' + data.period : ''} • ${results.totalMetrics} ${t('metricsAnalyzed','metrics analyzed')}</span>
+        <span class="price">${data.price || ''} ${data.period ? '• ' + localizeDynamicText(data.period) : ''} • ${results.totalMetrics} ${t('metricsAnalyzed','metrics analyzed')}</span>
       </div>
       <div class="header-actions">
         <button id="toggleSectionsBtn" class="btn-toggle-sections" onclick="toggleAllSections()">${t('collapseAll','Collapse all sections')}</button>
@@ -2616,7 +2683,7 @@ function renderDashboard(data, results) {
     const grade = bears >= 2 ? 'poor' : bulls > bears ? 'good' : 'average';
     const driver = localizeDynamicText(signals[0]?.name || 'Not enough data');
     const light = grade === 'poor' ? '🔴' : grade === 'good' ? '🟢' : '🟡';
-    html += `<div class="score-card ${grade} fade-up"><div class="label">2-minute ${localizeDynamicText(cat.k)}</div><div class="value">${light} ${gradeLabel(grade)}</div><div class="detail">${driver} · <a href="${cat.href}" style="color:var(--accent)">${localizeDynamicText('see details')}</a></div></div>`;
+    html += `<div class="score-card ${grade} fade-up"><div class="label">${localizeDynamicText(`2-minute ${cat.k}`)}</div><div class="value">${light} ${gradeLabel(grade)}</div><div class="detail">${driver} · <a href="${cat.href}" style="color:var(--accent)">${localizeDynamicText('see details')}</a></div></div>`;
   });
   html += `</div>`;
 
