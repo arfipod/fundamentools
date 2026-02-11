@@ -16,6 +16,120 @@ function applyLocalization() {
   });
 }
 
+
+const GICS_INDUSTRIES = [
+  ['101010','Energy Equipment & Services','Energy – Oilfield Services'],
+  ['101020','Oil, Gas & Consumable Fuels','Energy – Upstream & Fuels'],
+  ['151010','Chemicals','Materials – Chemicals'],
+  ['151020','Construction Materials','Materials – Materials ex-metals'],
+  ['151030','Containers & Packaging','Materials – Materials ex-metals'],
+  ['151040','Metals & Mining','Materials – Metals & Mining'],
+  ['151050','Paper & Forest Products','Materials – Materials ex-metals'],
+  ['201010','Aerospace & Defense','Industrials – Capital Goods'],
+  ['201020','Building Products','Industrials – Construction & Building'],
+  ['201030','Construction & Engineering','Industrials – Construction & Building'],
+  ['201040','Electrical Equipment','Industrials – Capital Goods'],
+  ['201050','Industrial Conglomerates','Industrials – Capital Goods'],
+  ['201060','Machinery','Industrials – Capital Goods'],
+  ['201070','Trading Companies & Distributors','Industrials – Services & Distributors'],
+  ['202010','Commercial Services & Supplies','Industrials – Services & Distributors'],
+  ['202020','Professional Services','Industrials – Services & Distributors'],
+  ['203010','Air Freight & Logistics','Transportation'],
+  ['203020','Passenger Airlines','Transportation'],
+  ['203030','Marine Transportation','Transportation'],
+  ['203040','Ground Transportation','Transportation'],
+  ['203050','Transportation Infrastructure','Transportation'],
+  ['251010','Automobile Components','ConsDisc – Autos & Suppliers'],
+  ['251020','Automobiles','ConsDisc – Autos & Suppliers'],
+  ['252010','Household Durables','ConsDisc – Brands/Leisure/Services'],
+  ['252020','Leisure Products','ConsDisc – Brands/Leisure/Services'],
+  ['252030','Textiles, Apparel & Luxury Goods','ConsDisc – Brands/Leisure/Services'],
+  ['253010','Hotels, Restaurants & Leisure','ConsDisc – Brands/Leisure/Services'],
+  ['253020','Diversified Consumer Services','ConsDisc – Brands/Leisure/Services'],
+  ['255010','Distributors','ConsDisc – Brands/Leisure/Services'],
+  ['255030','Broadline Retail','ConsDisc – Retail'],
+  ['255040','Specialty Retail','ConsDisc – Retail'],
+  ['301010','Consumer Staples Distribution & Retail','ConsStap – Retail'],
+  ['302010','Beverages','ConsStap – Brands'],
+  ['302020','Food Products','ConsStap – Brands'],
+  ['302030','Tobacco','ConsStap – Brands'],
+  ['303010','Household Products','ConsStap – Brands'],
+  ['303020','Personal Care Products','ConsStap – Brands'],
+  ['351010','Health Care Equipment & Supplies','Health – MedTech'],
+  ['351020','Health Care Providers & Services','Health – Providers & Tech'],
+  ['351030','Health Care Technology','Health – Providers & Tech'],
+  ['352010','Pharmaceuticals','Health – Pharma & Biotech'],
+  ['352020','Biotechnology','Health – Pharma & Biotech'],
+  ['352030','Life Sciences Tools & Services','Health – Life Sci Tools'],
+  ['401010','Banks','Financials – Banks'],
+  ['402010','Financial Services','Financials – Lenders & MREITs'],
+  ['402020','Consumer Finance','Financials – Lenders & MREITs'],
+  ['402030','Capital Markets','Financials – Capital Markets'],
+  ['402040','Mortgage Real Estate Investment Trusts','Financials – Lenders & MREITs'],
+  ['403010','Insurance','Financials – Insurance'],
+  ['451010','IT Services','IT – IT Services'],
+  ['451020','Software','IT – Software'],
+  ['452010','Communications Equipment','IT – Hardware & Components'],
+  ['452020','Technology Hardware, Storage & Peripherals','IT – Hardware & Components'],
+  ['452030','Electronic Equipment, Instruments & Components','IT – Hardware & Components'],
+  ['453010','Semiconductors & Semiconductor Equipment','IT – Semiconductors'],
+  ['501010','Diversified Telecommunication Services','Comms – Telecom'],
+  ['501020','Wireless Telecommunication Services','Comms – Telecom'],
+  ['502010','Media','Comms – Media & Entertainment'],
+  ['502020','Entertainment','Comms – Media & Entertainment'],
+  ['502030','Interactive Media & Services','Comms – Interactive Platforms'],
+  ['551010','Electric Utilities','Utilities – Regulated'],
+  ['551020','Gas Utilities','Utilities – Regulated'],
+  ['551030','Multi-Utilities','Utilities – Regulated'],
+  ['551040','Water Utilities','Utilities – Regulated'],
+  ['551050','Independent Power and Renewable Electricity Producers','Utilities – IPPs & Renewables'],
+  ['601010','Diversified REITs','Real Estate – Equity REITs'],
+  ['601020','Industrial REITs','Real Estate – Equity REITs'],
+  ['601025','Hotel & Resort REITs','Real Estate – Equity REITs'],
+  ['601030','Office REITs','Real Estate – Equity REITs'],
+  ['601040','Health Care REITs','Real Estate – Equity REITs'],
+  ['601050','Residential REITs','Real Estate – Equity REITs'],
+  ['601060','Retail REITs','Real Estate – Equity REITs'],
+  ['601070','Specialized REITs','Real Estate – Equity REITs'],
+  ['602010','Real Estate Management & Development','Real Estate – Dev/Management']
+];
+
+const INDUSTRY_PROFILES = {
+  'Energy – Oilfield Services': { valuation: 'EV/EBITDA · FCF yield · mid-cycle P/E', kpis: ['Backlog','Utilization','FCF conversion','Leverage'] },
+  'Energy – Upstream & Fuels': { valuation: 'EV/EBITDA (mid-cycle) · FCF yield · P/NAV', kpis: ['Production','Reserves','FCF conversion','Net debt/EBITDA'] },
+  'Materials – Chemicals': { valuation: 'EV/EBITDA · EV/FCF · EV/S', kpis: ['ROIC','Gross margin','Capex intensity','FCF conversion'] },
+  'Materials – Metals & Mining': { valuation: 'P/NAV · EV/EBITDA · FCF yield', kpis: ['Production','Reserves','Capex intensity','Leverage'] },
+  'Materials – Materials ex-metals': { valuation: 'EV/EBITDA · FCF yield · P/E', kpis: ['Gross margin','Working capital','Capex intensity','Leverage'] },
+  'Industrials – Capital Goods': { valuation: 'EV/EBITDA · EV/EBIT · P/E', kpis: ['Backlog','Operating margin','ROIC','FCF conversion'] },
+  'Industrials – Construction & Building': { valuation: 'EV/EBITDA · EV/EBIT · FCF yield', kpis: ['Backlog','Gross margin','Working capital','FCF conversion'] },
+  'Industrials – Services & Distributors': { valuation: 'EV/EBITDA · P/E · EV/FCF', kpis: ['Revenue growth','Operating margin','Inventory turns','Cash conversion cycle'] },
+  'Transportation': { valuation: 'EV/EBITDA · EV/EBIT · FCF yield', kpis: ['Revenue growth','Operating margin','Leverage','Capex intensity'] },
+  'ConsDisc – Autos & Suppliers': { valuation: 'EV/EBIT · P/E · FCF yield', kpis: ['Revenue growth','Gross margin','Inventory turns','Net debt/EBITDA'] },
+  'ConsDisc – Retail': { valuation: 'EV/EBIT · P/E · EV/EBITDA', kpis: ['Revenue growth','Gross margin','Inventory turns','Cash conversion cycle'] },
+  'ConsDisc – Brands/Leisure/Services': { valuation: 'EV/EBITDA · P/E · EV/FCF', kpis: ['Revenue growth','Gross margin','Operating margin','FCF conversion'] },
+  'ConsStap – Brands': { valuation: 'EV/EBITDA · P/E · EV/FCF', kpis: ['Revenue growth','Gross margin','Operating margin','FCF conversion'] },
+  'ConsStap – Retail': { valuation: 'P/E · EV/EBITDA · dividend yield', kpis: ['Revenue growth','Gross margin','Inventory turns','FCF conversion'] },
+  'Health – Pharma & Biotech': { valuation: 'P/E · EV/EBITDA · rNPV/DCF', kpis: ['R&D as % of Revenue','Gross margin','Cash runway','Dilution'] },
+  'Health – MedTech': { valuation: 'EV/EBITDA · EV/EBIT · P/FCF', kpis: ['Revenue growth','Gross margin','FCF conversion','R&D as % of Revenue'] },
+  'Health – Life Sci Tools': { valuation: 'EV/EBITDA · EV/EBIT · P/E', kpis: ['Revenue growth','Gross margin','Operating margin','Capex intensity'] },
+  'Health – Providers & Tech': { valuation: 'EV/EBITDA · P/E · EV/S', kpis: ['Revenue growth','Operating margin','Leverage','FCF conversion'] },
+  'Financials – Banks': { valuation: 'P/TBV · P/B · P/E', kpis: ['ROE','Net interest margin','Loan quality','CET1'] },
+  'Financials – Insurance': { valuation: 'P/B · P/E · EV/EBIT', kpis: ['ROE','Combined ratio','Investment yield','Leverage'] },
+  'Financials – Capital Markets': { valuation: 'P/E · P/B · EV/EBITDA', kpis: ['Revenue growth','Operating margin','ROE','Leverage'] },
+  'Financials – Lenders & MREITs': { valuation: 'P/E · P/B · dividend yield', kpis: ['Net interest margin','Loan quality','Leverage','Book value'] },
+  'IT – Software': { valuation: 'EV/S · EV/FCF · P/FCF', kpis: ['Revenue growth','Gross margin','FCF margin','Dilution'] },
+  'IT – Semiconductors': { valuation: 'P/E · EV/EBITDA · EV/S', kpis: ['Revenue growth','Gross margin','Capex intensity','Inventory turns'] },
+  'IT – Hardware & Components': { valuation: 'P/E · EV/EBITDA · EV/S', kpis: ['Revenue growth','Gross margin','Inventory turns','Capex intensity'] },
+  'IT – IT Services': { valuation: 'EV/EBITDA · EV/EBIT · P/E', kpis: ['Revenue growth','Operating margin','Cash conversion cycle','FCF conversion'] },
+  'Comms – Telecom': { valuation: 'EV/EBITDA · dividend yield · P/E', kpis: ['Revenue growth','Leverage','Capex intensity','FCF conversion'] },
+  'Comms – Media & Entertainment': { valuation: 'EV/EBITDA · EV/EBIT · P/E', kpis: ['Revenue growth','Operating margin','Leverage','FCF conversion'] },
+  'Comms – Interactive Platforms': { valuation: 'EV/S · EV/EBITDA · EV/FCF', kpis: ['Revenue growth','Gross margin','Operating margin','FCF conversion'] },
+  'Utilities – Regulated': { valuation: 'P/E · EV/EBITDA · dividend yield', kpis: ['Leverage','Capex intensity','Dividend payout','FCF conversion'] },
+  'Utilities – IPPs & Renewables': { valuation: 'EV/EBITDA · CAFD yield · P/E', kpis: ['Leverage','Capex intensity','Revenue growth','FCF conversion'] },
+  'Real Estate – Equity REITs': { valuation: 'P/AFFO · implied cap rate · P/NAV', kpis: ['Debt service','Leverage','Revenue growth','Dividend payout'] },
+  'Real Estate – Dev/Management': { valuation: 'P/NAV · P/B · EV/EBITDA', kpis: ['Book value','Leverage','Revenue growth','Cash conversion cycle'] }
+};
+
 function setLanguage(lang) {
   currentLang = (lang === 'en' ? 'en' : 'es');
   localStorage.setItem('fundamentalAnalyzerLang', currentLang);
@@ -23,9 +137,102 @@ function setLanguage(lang) {
   const langSel = document.getElementById('langSelect');
   if (langSel) langSel.value = currentLang;
   updateToggleSectionsButton();
+  populateIndustrySelector();
 }
 
 
+
+
+function populateIndustrySelector() {
+  const sel = document.getElementById('industrySelect');
+  if (!sel) return;
+  const current = sel.value || 'auto';
+  const options = [`<option value="auto">${t('industry.auto', 'GICS industry: Auto (infer)')}</option>`];
+  GICS_INDUSTRIES.forEach(([code, name]) => {
+    options.push(`<option value="${code}">${code} — ${name}</option>`);
+  });
+  sel.innerHTML = options.join('');
+  sel.value = GICS_INDUSTRIES.some(([code]) => code === current) ? current : 'auto';
+}
+
+function collectAvailableLabels(data) {
+  const labels = new Set();
+  Object.values(data.sections || {}).forEach(section => {
+    (section?.rows || []).forEach(row => {
+      [row.label, row.rawLabel, row.displayLabel, row.labelNormalized].forEach(v => {
+        if (v) labels.add(String(v).toLowerCase());
+      });
+    });
+  });
+  return labels;
+}
+
+function hasAnyLabel(labels, terms) {
+  return terms.some(term => Array.from(labels).some(l => l.includes(term)));
+}
+
+function industryKpiRule(name) {
+  const n = name.toLowerCase();
+  if (n.includes('revenue growth') || n.includes('production')) return { terms: ['revenue', 'ingresos', 'sales', 'production'], note: 'Growth visibility and demand resilience are key for this industry profile.' };
+  if (n.includes('gross margin')) return { terms: ['gross margin', 'margen bruto', 'gross profit', 'beneficio bruto'], note: 'Margin stability is a core indicator for pricing power in this profile.' };
+  if (n.includes('operating margin')) return { terms: ['operating margin', 'margen operativo', 'operating income', 'ebit'], note: 'Operating discipline matters more than top-line volatility here.' };
+  if (n.includes('fcf') || n.includes('cash conversion')) return { terms: ['free cash flow', 'flujo de caja libre', 'cash from operations', 'operating cash flow'], note: 'Cash conversion is explicitly weighted in the selected industry heuristics.' };
+  if (n.includes('inventory')) return { terms: ['inventory', 'inventario'], note: 'Inventory efficiency is especially relevant for this industry setup.' };
+  if (n.includes('capex')) return { terms: ['capital expenditures', 'capex', 'inmovilizado', 'property plant'], note: 'Capex intensity drives cycle risk and valuation multiples in this profile.' };
+  if (n.includes('leverage') || n.includes('debt') || n.includes('debt service')) return { terms: ['debt', 'deuda', 'net debt', 'long-term debt', 'interest expense'], note: 'Balance-sheet risk is a first-order KPI for this selected industry.' };
+  if (n.includes('book value')) return { terms: ['book value', 'valor contable', 'total equity', 'patrimonio'], note: 'Book value evolution is a central anchor for this profile valuation.' };
+  if (n.includes('roe')) return { terms: ['roe', 'return on equity', 'rentabilidad sobre recursos propios'], note: 'Return on equity is structurally important for this industry profile.' };
+  if (n.includes('r&d')) return { terms: ['r&d', 'research', 'investigación'], note: 'Innovation intensity is a key differentiator in this industry profile.' };
+  if (n.includes('dividend')) return { terms: ['dividend', 'dividendo', 'payout ratio'], note: 'Dividend sustainability is a highlighted KPI in this profile.' };
+  if (n.includes('loan quality')) return { terms: ['npl', 'charge-off', 'allowance', 'provision'], note: 'Credit quality is a critical risk vector for this financial profile.' };
+  if (n.includes('net interest margin')) return { terms: ['nim', 'net interest', 'interest income', 'interest expense'], note: 'Interest spread quality is one of the main profile heuristics.' };
+  return { terms: [n.split('/')[0].trim().toLowerCase()], note: 'Relevant for this industry profile based on the selected GICS mapping.' };
+}
+
+function buildIndustryLens(data, industryCode) {
+  if (!industryCode || industryCode === 'auto') return null;
+  const entry = GICS_INDUSTRIES.find(([code]) => code === industryCode);
+  if (!entry) return null;
+  const [, industryName, profileName] = entry;
+  const profile = INDUSTRY_PROFILES[profileName];
+  if (!profile) return null;
+
+  const labels = collectAvailableLabels(data);
+  const items = [];
+  profile.kpis.forEach((kpi) => {
+    const rule = industryKpiRule(kpi);
+    if (!hasAnyLabel(labels, rule.terms)) return;
+    items.push(makeItem(
+      kpi,
+      `${t('industryProfile', 'Profile')}: ${profileName}`,
+      [],
+      'info',
+      t('info', 'Info'),
+      `${rule.note} ${t('industryValuation', 'Preferred valuation lens')}: ${profile.valuation}`,
+      { scoreRule: `industry=${industryCode}; profile=${profileName}` }
+    ));
+  });
+
+  if (!items.length) {
+    items.push(makeItem(
+      t('industryLensTitle', 'Industry KPI lens'),
+      t('industryLensEmpty', 'No profile KPIs were detected in the pasted financial input.'),
+      [],
+      'info',
+      t('info', 'Info'),
+      `${t('industryProfile', 'Profile')}: ${profileName}. ${t('industryValuation', 'Preferred valuation lens')}: ${profile.valuation}`,
+      { scoreRule: `industry=${industryCode}; profile=${profileName}` }
+    ));
+  }
+
+  return {
+    id: 'industry-kpis',
+    title: `${t('industryLensTitle', 'Industry KPI lens')} · ${industryCode} — ${industryName}`,
+    icon: '🧩',
+    grade: 'info',
+    items
+  };
+}
 
 
 const FINANCIAL_LABEL_EN_ES = {
@@ -774,6 +981,7 @@ function makeItem(name, detail, vals, signal, signalText, explanation, meta = {}
 }
 
 function analyze(data, profile = 'default', options = {}) {
+  const selectedIndustry = options.selectedIndustry || 'auto';
   const results = { scores: {}, sections: [], meta: { highConfidence: [], lowConfidence: [] } };
   const is = data.sections['Income Statement'];
   const bs = data.sections['Balance Sheet'];
@@ -2598,6 +2806,9 @@ function analyze(data, profile = 'default', options = {}) {
     valAdd.push(makeItem('Potential Value Trap', `Cheap multiple (${pe ? `P/E ${pe.toFixed(1)}` : pfcf ? `P/FCF ${pfcf.toFixed(1)}` : `FCF yield ${fcfYield.toFixed(1)}%`}) + weakening fundamentals`, [], 'bear', 'Possible value trap (trampa de valor)', 'Cheap valuation can be deserved when fundamentals deteriorate.'));
   }
   if (valAdd.length) results.sections.push({ id: 'valuation-philosophy', title: 'Valuation Philosophy Checks', icon: '🧮', grade: valAdd.some(i=>i.signal==='bear')?'average':'good', items: valAdd });
+
+  const industryLensSection = buildIndustryLens(data, selectedIndustry);
+  if (industryLensSection) results.sections.unshift(industryLensSection);
   // ══════════════════════════════════════════════════════════
   // OVERALL SCORE
   // ══════════════════════════════════════════════════════════
@@ -2849,6 +3060,7 @@ function syncCustomProfileUI() {
 // Run once on load
 document.addEventListener('DOMContentLoaded', () => {
   syncCustomProfileUI();
+  populateIndustrySelector();
   const langSel = document.getElementById('langSelect');
   if (langSel) {
     langSel.value = currentLang;
@@ -2891,6 +3103,7 @@ function analyzeData() {
     }
 
     const selected = document.getElementById('profileSelect').value;
+    const selectedIndustry = document.getElementById('industrySelect')?.value || 'auto';
 
     let customThresholds = null;
     let engineProfile = selected;
@@ -2906,7 +3119,7 @@ function analyzeData() {
       engineProfile = 'default';
     }
 
-    const results = analyze(data, engineProfile, { customThresholds });
+    const results = analyze(data, engineProfile, { customThresholds, selectedIndustry });
     renderDashboard(data, results);
     showDashboard();
   } catch (e) {
