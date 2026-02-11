@@ -22,6 +22,7 @@ function setLanguage(lang) {
   applyLocalization();
   const langSel = document.getElementById('langSelect');
   if (langSel) langSel.value = currentLang;
+  populateIndustrySelector();
   updateToggleSectionsButton();
 }
 
@@ -2648,10 +2649,9 @@ function renderTrendBars(values, labels = []) {
   }).join('')}</div><div class="bar-point-view mono" data-i18n-point>${t('barNoData','No data')}</div>`;
 }
 
-function renderDashboard(data, results) {
+function renderDashboard(data, results, industrySelection = null) {
   const d = document.getElementById('dashboard');
   const overallLabel = gradeLabel(results.overall || 'average');
-  const overallColor = { excellent: 'var(--green)', good: 'var(--accent)', average: 'var(--yellow)', poor: 'var(--red)' }[results.overall] || 'var(--text-dim)';
 
   let html = `
     <div class="dash-header fade-up">
@@ -2664,15 +2664,19 @@ function renderDashboard(data, results) {
         <button class="btn-back" onclick="goBack()">${t('newAnalysis','← New Analysis')}</button>
       </div>
     </div>
+    <div class="dashboard-tabs fade-up">
+      <button class="dashboard-tab active" data-tab="analysis" onclick="switchDashboardTab('analysis')">${currentLang === 'es' ? 'Análisis' : 'Analysis'}</button>
+      <button class="dashboard-tab" data-tab="industry" onclick="switchDashboardTab('industry')">${currentLang === 'es' ? 'KPIs por industria' : 'Industry KPIs'}</button>
+    </div>
+    <div class="dashboard-panel" data-panel="analysis">
   `;
 
-  // 2-minute scorecard
   const byId = id => results.sections.find(s => s.id === id);
   const catDefs = [
-    { k:'Quality',        sec:['harmony','cashflow-truth','margins','cashflow'], href:'#harmony' },
-    { k:'Moat',           sec:['moat','margins'],                                 href:'#moat' },
-    { k:'Financial Risk', sec:['balance','balance-composition','debt'],           href:'#balance' },
-    { k:'Valuation',      sec:['valuation','valuation-philosophy'],              href:'#valuation-philosophy' }
+    { k:'Quality', sec:['harmony','cashflow-truth','margins','cashflow'], href:'#harmony' },
+    { k:'Moat', sec:['moat','margins'], href:'#moat' },
+    { k:'Financial Risk', sec:['balance','balance-composition','debt'], href:'#balance' },
+    { k:'Valuation', sec:['valuation','valuation-philosophy'], href:'#valuation-philosophy' }
   ];
   html += `<div class="score-row">`;
   catDefs.forEach(cat => {
@@ -2687,7 +2691,6 @@ function renderDashboard(data, results) {
   });
   html += `</div>`;
 
-  // Score cards
   const cards = [
     { label: localizeDynamicText('Overall Health'), value: overallLabel, grade: results.overall, detail: `${currentLang==='es'?'Puntuación':'Score'}: ${results.overallScore?.toFixed(1)}/4.0` },
     ...Object.entries(results.scores).map(([k, g]) => ({
@@ -2708,7 +2711,6 @@ function renderDashboard(data, results) {
   });
   html += `</div>`;
 
-  // Sections
   results.sections.forEach((sec, si) => {
     const badgeCls = gradeBadgeClass(sec.grade);
     html += `
@@ -2729,7 +2731,7 @@ function renderDashboard(data, results) {
       html += `
         <div class="a-item">
           <div>
-            <div class="metric-name">${localizeDynamicText(item.name)}${item.tip ? ` <span class="tip" data-tip="${localizeDynamicText(item.tip)}">ⓘ</span>` : ""} <span class="tip" data-tip="${t('scoreConditions','Score conditions')}: ${localizeDynamicText(item.scoreRule || item.explanation || item.signalText || '')}">🏷️</span></div>
+            <div class="metric-name">${localizeDynamicText(item.name)}${item.tip ? ` <span class="tip" data-tip="${localizeDynamicText(item.tip)}">ⓘ</span>` : ''} <span class="tip" data-tip="${t('scoreConditions','Score conditions')}: ${localizeDynamicText(item.scoreRule || item.explanation || item.signalText || '')}">🏷️</span></div>
             <div class="metric-detail">${localizeDynamicText(item.detail || '')}</div>
             ${item.explanation ? `<div class="metric-values">${localizeDynamicText(item.explanation)}</div>` : ''}
             <div class="metric-values">${t('confidence','Confidence')}: ${(item.confidence * 100).toFixed(0)}%</div>
@@ -2745,8 +2747,8 @@ function renderDashboard(data, results) {
     html += `</div></div></div>`;
   });
 
-  // Summary
   html += buildSummary(data, results);
+  html += `</div><div class="dashboard-panel" data-panel="industry" style="display:none">${buildIndustryPanel(data, results, industrySelection)}</div>`;
   d.innerHTML = html;
   updateToggleSectionsButton();
 }
@@ -2816,6 +2818,99 @@ function buildSummary(data, results) {
   </div>`;
 }
 
+
+function populateIndustrySelector() {
+  const sel = document.getElementById('industrySelect');
+  if (!sel || !Array.isArray(window.GICS_INDUSTRIES)) return;
+  const autoLabel = currentLang === 'es' ? 'Industria: Auto (sin sesgo)' : 'Industry: Auto (no bias)';
+  const current = sel.value || 'auto';
+  sel.innerHTML = [`<option value="auto">${autoLabel}</option>`]
+    .concat(window.GICS_INDUSTRIES.slice().sort((a, b) => a.code.localeCompare(b.code)).map(i => `<option value="${i.code}">${i.code} · ${i.name}</option>`))
+    .join('');
+  sel.value = current;
+}
+
+function getIndustrySelection() {
+  const code = document.getElementById('industrySelect')?.value || 'auto';
+  if (code === 'auto') return null;
+  return window.GICS_INDUSTRIES?.find(i => i.code === code) || null;
+}
+
+function normalizeSimple(v) {
+  return String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function buildAvailabilityIndex(data, results) {
+  const labels = [];
+  Object.values(data.sections || {}).forEach(sec => (sec?.rows || []).forEach(r => labels.push(r.label)));
+  (results.sections || []).forEach(sec => (sec.items || []).forEach(i => labels.push(i.name)));
+  const clean = labels.map(normalizeSimple).filter(Boolean);
+  return { blob: clean.join(' | ') };
+}
+
+function hasAny(index, terms) {
+  return terms.some(term => index.blob.includes(normalizeSimple(term)));
+}
+
+function isKpiAvailable(kpi, index) {
+  const k = normalizeSimple(kpi);
+  const rules = [
+    { terms: ['fcf', 'free cash flow', 'cash conversion', 'cfo'], match: ['free cash flow', 'cash from operations', 'operating cash flow', 'fcf'] },
+    { terms: ['margin', 'gross margin', 'ebitda'], match: ['gross margin', 'operating margin', 'ebitda margin', 'gross profit', 'operating income'] },
+    { terms: ['working capital'], match: ['current assets', 'current liabilities', 'accounts receivable', 'inventory', 'accounts payable'] },
+    { terms: ['inventory'], match: ['inventory', 'inventories'] },
+    { terms: ['debt', 'leverage', 'net debt'], match: ['net debt', 'long-term debt', 'short-term borrowings', 'total liabilities'] },
+    { terms: ['roic', 'roe', 'roa'], match: ['roic', 'roe', 'roa', 'return on'] },
+    { terms: ['revenue', 'volume', 'price mix', 'asp'], match: ['revenue', 'ingresos', 'price / sales'] },
+    { terms: ['book value', 'p b', 'p tbv'], match: ['book value', 'tangible book', 'price / book'] },
+    { terms: ['nim', 'npl', 'cet1', 'ldr'], match: ['interest expense', 'allowance', 'book value', 'loan'] },
+    { terms: ['capex'], match: ['capital expenditures', 'capex', 'property plant'] }
+  ];
+  for (const rule of rules) {
+    if (rule.terms.some(t => k.includes(normalizeSimple(t)))) return hasAny(index, rule.match);
+  }
+  const tokens = k.split(' ').filter(w => w.length >= 4);
+  return tokens.some(tok => index.blob.includes(tok));
+}
+
+function buildIndustryPanel(data, results, industry) {
+  if (!industry) {
+    return `<div class="industry-empty">${currentLang === 'es' ? 'No seleccionaste una industria concreta. Selecciónala en la pantalla inicial para activar heurísticas GICS.' : 'No industry selected. Pick one on landing to activate GICS heuristics.'}</div>`;
+  }
+  const profile = window.INDUSTRY_PROFILES?.[industry.profile];
+  if (!profile) return '';
+
+  const index = buildAvailabilityIndex(data, results);
+  const valuation = profile.valuation.split('·').map(v => v.trim()).filter(Boolean);
+  const valuationAvailable = valuation.filter(v => isKpiAvailable(v, index));
+  const kpis = profile.kpis.split(',').map(k => k.trim()).filter(Boolean);
+  const availableKpis = kpis.filter(k => isKpiAvailable(k, index));
+
+  return `<div class="industry-panel fade-up">
+    <div class="industry-head">
+      <h3>${industry.code} · ${industry.name}</h3>
+      <p>${currentLang === 'es' ? 'Perfil heurístico' : 'Heuristic profile'}: <strong>${industry.profile}</strong></p>
+    </div>
+    <div class="industry-grid">
+      <div class="industry-card">
+        <h4>${currentLang === 'es' ? 'Múltiplos a priorizar (disponibles)' : 'Priority valuation metrics (available)'}</h4>
+        <ul>${valuationAvailable.length ? valuationAvailable.map(v => `<li>${v}</li>`).join('') : `<li>${currentLang === 'es' ? 'Sin cobertura con este input.' : 'No coverage with current input.'}</li>`}</ul>
+      </div>
+      <div class="industry-card">
+        <h4>${currentLang === 'es' ? 'KPIs relevantes detectados' : 'Detected relevant KPIs'}</h4>
+        ${availableKpis.length ? `<ul>${availableKpis.map(k => `<li><strong>${k}</strong> — ${currentLang === 'es' ? 'Relevante para esta industria.' : 'Relevant for this industry.'}</li>`).join('')}</ul>` : `<p>${currentLang === 'es' ? 'No hay KPIs detectables con los datos cargados. (No se muestran los no disponibles).' : 'No profile KPIs were detectable from the uploaded financials. (Unavailable KPIs are hidden).'}</p>`}
+      </div>
+    </div>
+  </div>`;
+}
+
+function switchDashboardTab(tab) {
+  document.querySelectorAll('.dashboard-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
+  document.querySelectorAll('.dashboard-panel').forEach(panel => {
+    panel.style.display = panel.dataset.panel === tab ? 'block' : 'none';
+  });
+}
+
 // =========================================================
 // MAIN
 // =========================================================
@@ -2849,6 +2944,7 @@ function syncCustomProfileUI() {
 // Run once on load
 document.addEventListener('DOMContentLoaded', () => {
   syncCustomProfileUI();
+  populateIndustrySelector();
   const langSel = document.getElementById('langSelect');
   if (langSel) {
     langSel.value = currentLang;
@@ -2907,7 +3003,8 @@ function analyzeData() {
     }
 
     const results = analyze(data, engineProfile, { customThresholds });
-    renderDashboard(data, results);
+    const industrySelection = getIndustrySelection();
+    renderDashboard(data, results, industrySelection);
     showDashboard();
   } catch (e) {
     console.error(e);

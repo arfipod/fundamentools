@@ -240,3 +240,19 @@ body{
 .metric-count{
   font-size:.7rem;color:var(--text-dim);margin-left:auto;padding-right:.5rem;
 }
+
+.dashboard-tabs{display:flex;gap:.6rem;margin-bottom:1rem}
+.dashboard-tab{
+  background:var(--surface2);border:1px solid var(--border);color:var(--text-dim);
+  border-radius:var(--radius-sm);padding:.45rem .8rem;font-size:.82rem;cursor:pointer;
+}
+.dashboard-tab.active{color:var(--text);border-color:var(--accent);box-shadow:0 0 0 1px var(--accent-glow) inset}
+.industry-panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem}
+.industry-head h3{font-size:1rem}
+.industry-head p{font-size:.84rem;color:var(--text-dim);margin-top:.2rem}
+.industry-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem;margin-top:.8rem}
+.industry-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:.9rem}
+.industry-card h4{font-size:.85rem;margin-bottom:.45rem;color:var(--accent)}
+.industry-card ul{padding-left:1rem}
+.industry-card li{font-size:.82rem;color:var(--text-dim);margin:.3rem 0}
+.industry-empty{background:var(--surface);border:1px dashed var(--border);border-radius:var(--radius);padding:1rem;color:var(--text-dim)}
